@@ -1,0 +1,101 @@
+﻿body {
+    font-family: 'Fira Code';
+    font-size: medium;
+    font-weight: 500;
+    margin: 0px;
+}
+
+canvas {
+    background-color: transparent;
+    position: absolute;
+}
+
+.app {
+    display: flex;
+}
+
+.settings {
+    flex-grow: 1;
+    display: flex;
+    flex-flow: column;
+    margin-top: 5px;
+    margin-left: 5px;
+}
+
+.buttons {
+    flex-basis: 15%;
+    margin-right: 5px;
+}
+
+.settings-section {
+    flex-grow: 1;
+    margin-right: 5px;
+}
+
+.button {
+    width: 150px;
+    height: 35px;
+    font-family: 'Fira Code';
+    font-size: medium;
+    font-weight: 800;
+    margin-bottom: 5px;
+}
+
+.number-input {
+    width: 75px;
+    font-family: 'Fira Code';
+    font-size: medium;
+    font-weight: 600;
+}
+
+.telemetry {
+    display: flex;
+}
+
+.telemetry-name {
+    flex-shrink: 0;
+    margin-right: 5px;
+}
+
+.telemetry-value {
+    flex-grow: 1;
+}
+
+@media (min-width: 1275px) {
+    .settings {
+        flex-flow: column;
+    }
+
+    .app {
+        flex-flow: row;
+    }
+}
+
+@media (max-width: 1274px) {
+    .settings {
+        flex-flow: row;
+    }
+
+    .app {
+        flex-flow: column;
+    }
+}
+
+footer {
+    display: flex;
+    height: 75px;
+    justify-content: space-evenly;
+    margin-top: 75px;
+    border-top: solid 1px;
+}
+
+.footer-section {
+    display: flex;
+    align-items: center;
+}
+
+.footer-icon {
+    width: 35px;
+    height: 35px;
+    margin-left: 5px;
+}

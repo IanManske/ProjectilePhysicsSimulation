@@ -1,0 +1,263 @@
+@using static System.Math
+@using Microsoft.AspNetCore.Components.Web
+@using Blazor.Extensions
+@using Blazor.Extensions.Canvas
+@using Blazor.Extensions.Canvas.Canvas2D
+
+@inject Simulation Simulation
+
+@page "/"
+
+<div class="app">
+	<div style="
+		border: solid 1px black;
+		height: @HeightPX;
+		width: @WidthPX;
+		margin: 5px 5px 0 5px;
+		flex-shrink: 0;">
+
+		<div hidden=@(!ShowPath)>
+			<BECanvas Width=@Simulation.Width Height=@Simulation.Height @ref=pathCanvas />
+		</div>
+		<div>
+			<BECanvas Width=@Simulation.Width Height=@Simulation.Height @ref=bodyCanvas />
+		</div>
+		<div hidden=@(!ShowVelocityMarker)>
+			<BECanvas Width=@Simulation.Width Height=@Simulation.Height @ref=velocityCanvas />
+		</div>
+	</div>
+	<div class="settings">
+		<div class="buttons">
+			<button type="button" class="button" @onclick=Simulation.StartStop>
+				Start/Stop
+			</button>
+			<button type="button" class="button" @onclick=Simulation.Tick disabled=@(Simulation.Running)>
+				Tick
+			</button>
+			<button type="button" class="button" @onclick=Reset disabled=@(!Simulation.Started)>
+				Reset
+			</button>
+		</div>
+		<div class="settings-section">
+			<label>
+				<input type="checkbox" @bind=ShowVelocityMarker />
+				Show Velocity Marker
+			</label>
+			<br />
+			<label>
+				<input type="checkbox" @bind=ShowPath />
+				Trace Trajectory
+			</label>
+			<br />
+			<br />
+			Telemetry:
+			<br />
+			<div class="telemetry">
+				<div class="telemetry-name">
+					X:
+					<br />
+					Y:
+					<br />
+					VX:
+					<br />
+					VY:
+					<br />
+					AX:
+					<br />
+					AY:
+					<br />
+					Time:
+					<br />
+					Frame:
+				</div>
+				<div class="telemetry-value">
+					@($"{Simulation.Projectile.X:F5}")
+					<br />
+					@($"{Simulation.Height - Simulation.Projectile.Height - Simulation.Projectile.Y:F5}")
+					<br />
+					@($"{Simulation.Projectile.VX:F5}")
+					<br />
+					@($"{-1 * Simulation.Projectile.VY:F5}")
+					<br />
+					@($"{Simulation.Projectile.AX:F5}")
+					<br />
+					@($"{-1 * Simulation.Projectile.AY:F5}")
+					<br />
+					@($"{Simulation.Time:F5}")
+					<br />
+					@Simulation.Frame
+				</div>
+			</div>
+		</div>
+		<div class="settings-section">
+			<label>
+				Simulation Speed:
+				<input type="number" class="number-input" @bind=Simulation.Speed step=0.25 />
+				x
+			</label>
+			<br />
+			<label>
+				Trajectory Tracer Every:
+				<input type="number" class="number-input" @bind=Simulation.TrajectoryTracerEverySecond step=0.25 />
+				s
+			</label>
+			<br />
+			<label>
+				Frames Per Second:
+				<input type="number" class="number-input" @bind=Simulation.FPS step=15 />
+			</label>
+			<br />
+			<br />
+			<label>
+				Mass:
+				<input type="number" class="number-input" @bind=Simulation.Projectile.Mass />
+				kg
+			</label>
+			<br />
+			<label>
+				Acceleration Due to Gravity:
+				<input type="number" class="number-input" @bind=Simulation.Gravity.Magnitude />
+				m/s/s
+			</label>
+			<br />
+			<label>
+				Air Resistance Constant:
+				<input type="number" class="number-input" @bind=Simulation.AirResistance.Constant step=@(Simulation.Projectile.Mass / 100.0)/>
+			</label>
+		</div>
+		<div class="settings-section">
+			<label>
+				Initial Speed:
+				<input type="number" class="number-input" @bind=Simulation.InitialSpeed disabled=@Simulation.Started />
+				m/s
+			</label>
+			<br />
+			<label>
+				Initial Angle:
+				<input type="number" class="number-input" @bind=Simulation.InitialAngle disabled=@Simulation.Started />
+				deg
+			</label>
+			<br />
+			<label>
+				Initial X:
+				<input type="number" class="number-input" @bind=Simulation.InitialX disabled=@Simulation.Started />
+			</label>
+			<br />
+			<label>
+				Initial Y:
+				<input type="number" class="number-input" @bind=Simulation.InitialY disabled=@Simulation.Started />
+			</label>
+		</div>
+	</div>
+</div>
+<footer>
+	<div class="footer-section">
+		Powered By: Blazor
+		<img src="https://devblogs.microsoft.com/aspnet/wp-content/uploads/sites/16/2019/04/BrandBlazor_nohalo_1000x.png" alt="Blazor Logo" class="footer-icon" />
+	</div>
+	<div class="footer-section">
+		Made By: Ian Manske
+		<a href="https://github.com/IanManske/ProjectilePhysicsSimulation" style="display: flex; align-items: center; margin-left: 20px;">
+			Source
+			<img src="https://image.flaticon.com/icons/svg/25/25231.svg" alt="View the source code on Github." class="footer-icon" />
+		</a>
+	</div>
+</footer>
+
+@code{
+	string WidthPX => Simulation.Width + "px";
+	string HeightPX => Simulation.Height + "px";
+
+	Canvas2DContext bodyContext;
+	BECanvasComponent bodyCanvas;
+
+	Canvas2DContext pathContext;
+	BECanvasComponent pathCanvas;
+
+	Canvas2DContext velocityContext;
+	BECanvasComponent velocityCanvas;
+
+	bool ShowVelocityMarker = true;
+	bool ShowPath = true;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			Simulation.StatsChanged += UpdateStats;
+			Simulation.TrajectoryTracer += new Action<Body>(async b => await DrawTrajectory(b));
+			Simulation.PositionChanged += new Action<Body>(async b => await UpdatePosition(b));
+			Simulation.VelocityChanged += new Action<Body>(async b => await UpdateVelocity(b));
+			bodyContext = await bodyCanvas.CreateCanvas2DAsync();
+			pathContext = await pathCanvas.CreateCanvas2DAsync();
+			velocityContext = await velocityCanvas.CreateCanvas2DAsync();
+
+			await bodyContext.SetFillStyleAsync("blue");
+			await pathContext.SetStrokeStyleAsync("black");
+			await velocityContext.SetStrokeStyleAsync("red");
+
+			await DrawPosition(Simulation.Projectile);
+			await DrawVelocity(Simulation.Projectile);
+		}
+	}
+
+	void UpdateStats()
+	{
+		StateHasChanged();
+	}
+
+	async Task Reset()
+	{
+		Simulation.Reset();
+		await bodyContext.ClearRectAsync(0, 0, Simulation.Width, Simulation.Height);
+		await pathContext.ClearRectAsync(0, 0, Simulation.Width, Simulation.Height);
+		await velocityContext.ClearRectAsync(0, 0, Simulation.Width, Simulation.Height);
+		await DrawPosition(Simulation.Projectile);
+		await DrawVelocity(Simulation.Projectile);
+	}
+
+	async Task DrawTrajectory(Body body)
+	{
+		await pathContext.BeginPathAsync();
+		await pathContext.ArcAsync(body.PrevX + body.Width / 2, body.PrevY + body.Height / 2, 2.5, 0, PI * 2);
+		await pathContext.ClosePathAsync();
+		await pathContext.FillAsync();
+	}
+
+	async Task UpdatePosition(Body body)
+	{
+		await ClearPosition(body);
+		await DrawPosition(body);
+		await UpdateVelocity(body);
+	}
+	async Task ClearPosition(Body body)
+	{
+		await bodyContext.ClearRectAsync(Round(body.PrevX) - 1, Round(body.PrevY) - 1, Round(body.Width) + 2, Round(body.Height) + 2);
+	}
+	async Task DrawPosition(Body body)
+	{	
+		await bodyContext.FillRectAsync(Round(body.X), Round(body.Y), Round(body.Width), Round(body.Height));
+	}
+
+	async Task UpdateVelocity(Body body)
+	{
+		await ClearVelocity(body);
+		await DrawVelocity(body);
+	}
+	async Task ClearVelocity(Body body)
+	{
+		await velocityContext.ClearRectAsync(
+			body.PrevX + body.Width / 2 - Abs(body.PrevVX) - 1,
+			body.PrevY + body.Height / 2 - Abs(body.PrevVY) - 1,
+			2 * Abs(body.PrevVX) + 2,
+			2 * Abs(body.PrevVY) + 2);
+	}
+	async Task DrawVelocity(Body body)
+	{
+		await velocityContext.BeginPathAsync();
+		await velocityContext.MoveToAsync(body.X + body.Width / 2, body.Y + body.Height / 2);
+		await velocityContext.LineToAsync(body.X + body.Width / 2 + body.VX, body.Y + body.Height / 2 + body.VY);
+		await velocityContext.ClosePathAsync();
+		await velocityContext.StrokeAsync();
+	}
+}
