@@ -1,0 +1,85 @@
+body
+  font-family: 'Fira Code'
+  font-size: medium
+  font-weight: 500
+  margin: 0
+
+canvas
+  background-color: transparent
+  position: absolute
+
+.app
+  display: flex
+
+.settings
+  display: flex
+  justify-content: space-around
+
+  &-section
+    margin-left: 5px
+    margin-right: 5px
+    list-style: none
+    padding: 0
+
+.setting
+  margin-bottom: 2.5px
+
+@media (min-width: 1320px)
+.app
+  flex-flow: row
+
+.settings
+  flex-flow: column
+  transform: translateY(-1.5%)
+
+@media (max-width: 1319px)
+  .app
+    flex-flow: column
+
+  .settings
+    flex-flow: row
+  
+  .setting
+    margin-bottom: 10px
+
+.button
+  width: 10em
+  height: 2.5em
+  font-family: 'Fira Code'
+  font-size: medium
+  font-weight: 800
+  margin-bottom: 5px
+
+.number-input
+  width: 5em
+  font-family: 'Fira Code'
+  font-size: medium
+  font-weight: 575
+
+.telemetry
+  display: flex
+
+  &-name
+    flex-shrink: 0
+    margin-right: 5px
+
+  &-value
+    flex-grow: 1
+
+footer
+  display: flex
+  height: 5em
+  justify-content: space-evenly
+  margin-top: 5em
+  border-top: solid 1px
+
+  & > span
+    align-self: center
+
+  & > a
+    display: flex
+    align-items: center
+
+  & img
+    width: 2em
+    height: 2em
