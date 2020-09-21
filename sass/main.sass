@@ -3,34 +3,155 @@ body
   font-size: medium
   font-weight: 500
   margin: 0
+  --margin-size: 0.25em
+  --border-width: 0.1em
+  --setting-spacing: 1.25em
 
 canvas
   background-color: transparent
   position: absolute
 
+ul
+  list-style: none
+  margin: 0
+  padding: 0
+
+button
+  cursor: pointer
+  padding: 0
+  border: 0
+
+input[type="number"]
+  width: 5em
+  margin-left: 0.5em
+  font-family: 'Fira Code'
+  font-size: medium
+  font-weight: 575
+  text-align: right
+
 .app
   display: flex
 
+%canvas-position
+  position: absolute
+  left: var(--margin-size)
+  top: var(--margin-size)
+
+.canvases
+  @extend %canvas-position
+  padding: var(--border-width)
+  overflow: visible
+
+.simulation
+  border: solid var(--border-width) black
+  margin: var(--margin-size)
+  flex-shrink: 0
+  flex-grow: 0
+
+.controls
+  display: flex
+  justify-content: space-between
+  align-items: center
+  border-top: solid var(--border-width) black
+  height: 5em
+  padding: 0 2em 0 2em
+
+  & > div
+    display: flex
+    flex-direction: column
+    align-items: center
+
+.playpause
+  background: transparent
+  box-sizing: border-box
+  height: 5.4em
+
+  border-color: transparent transparent transparent black
+  transition: 100ms border-width ease
+
+  &.play
+    border-style: solid
+    border-width: 2.75em 0 2.75em 4.5em
+
+    &:hover
+      opacity: 0.75
+
+  &.pause
+    border-style: double
+    border-width: 0 0 0 4.5em
+
+    &:hover
+      opacity: 0.75
+
+.jump
+  background: url('../public/jump.svg') no-repeat
+  width: 10em
+  height: 3.5em
+  background-position: center
+  background-size: 9em 3em
+
+  &:hover
+    background-size: 9.75em 4em
+    opacity: 0.75
+
+.reset
+  background: url('../public/reset.svg') no-repeat
+  width: 5.5em
+  height: 5.5em
+  background-position: center
+  background-size: 4.5em 4.5em
+
+  &:hover
+    background-size: 5em 5em
+    opacity: 0.75
+
+.telemetry
+  @extend %canvas-position
+  margin: var(--margin-size)
+  
+  & > summary
+    margin-left: 0.25em
+    cursor: pointer
+
+    &:hover
+      transform: scale(1.1)
+
+  & > table
+    & > tbody
+      & > tr
+        & > td
+          &:nth-child(2)
+            text-align: right
+
+.checkbox
+  cursor: pointer
+
+.tooltip
+  border-bottom: 0.1em dashed #999
+  text-decoration: none
+
 .settings
   display: flex
-  justify-content: space-around
+  justify-content: space-between
+  margin: var(--margin-size)
+  margin-bottom: calc(var(--margin-size) + var(--setting-spacing))
 
-  &-section
-    margin-left: 5px
-    margin-right: 5px
-    list-style: none
-    padding: 0
+  & > ul
+    margin-right: 0.5em
 
-.setting
-  margin-bottom: 2.5px
+    & > li
+      margin-top: var(--setting-spacing)
+
+      & > label
+        & > div
+          display: inline-block
 
 @media (min-width: 1320px)
-.app
-  flex-flow: row
+  .app
+    flex-flow: row
 
-.settings
-  flex-flow: column
-  transform: translateY(-1.5%)
+  .settings
+    flex-flow: column
 
 @media (max-width: 1319px)
   .app
@@ -38,40 +159,13 @@ canvas
 
   .settings
     flex-flow: row
-  
-  .setting
-    margin-bottom: 10px
-
-.button
-  width: 10em
-  height: 2.5em
-  font-family: 'Fira Code'
-  font-size: medium
-  font-weight: 800
-  margin-bottom: 5px
-
-.number-input
-  width: 5em
-  font-family: 'Fira Code'
-  font-size: medium
-  font-weight: 575
-
-.telemetry
-  display: flex
-
-  &-name
-    flex-shrink: 0
-    margin-right: 5px
-
-  &-value
-    flex-grow: 1
 
 footer
   display: flex
   height: 5em
   justify-content: space-evenly
   margin-top: 5em
-  border-top: solid 1px
+  border-top: solid var(--border-width)
 
   & > span
     align-self: center
@@ -81,5 +175,6 @@ footer
     align-items: center
 
   & img
+    margin-left: 0.5em
     width: 2em
     height: 2em
