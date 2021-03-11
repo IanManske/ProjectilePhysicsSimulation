@@ -1,7 +1,11 @@
+%font
+  font:
+    family: 'Fira Code'
+    size: medium
+    weight: 500
+
 body
-  font-family: 'Fira Code'
-  font-size: medium
-  font-weight: 500
+  @extend %font
   margin: 0
   --margin-size: 0.25em
   --border-width: 0.1em
@@ -21,16 +25,38 @@ button
   padding: 0
   border: 0
 
+  &:focus
+    outline: none
+
 input[type="number"]
+  @extend %font
   width: 5em
-  margin-left: 0.5em
-  font-family: 'Fira Code'
-  font-size: medium
-  font-weight: 575
+  margin:
+    left: 0.5em
+    right: 0.15em
   text-align: right
+  border:
+    width: 1px
+    style: solid
+    color: black
+    radius: 0.25em
+
+  -moz-appearance: textfield
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button
+    -webkit-appearance: none
+
+  &:focus
+    outline: none
+
+  &:invalid
+    border-color: red
+
 
 .app
   display: flex
+
 
 %canvas-position
   position: absolute
@@ -45,8 +71,9 @@ input[type="number"]
 .simulation
   border: solid var(--border-width) black
   margin: var(--margin-size)
-  flex-shrink: 0
-  flex-grow: 0
+  flex:
+    shrink: 0
+    grow: 0
 
 .controls
   display: flex
@@ -61,49 +88,55 @@ input[type="number"]
     flex-direction: column
     align-items: center
 
-.playpause
+
+%playpause
   background: transparent
   box-sizing: border-box
-  height: 5.4em
-
+  height: 3.75em
   border-color: transparent transparent transparent black
   transition: 100ms border-width ease
 
-  &.play
-    border-style: solid
-    border-width: 2.75em 0 2.75em 4.5em
+  &:hover
+    transform: scale(1.1)
 
-    &:hover
-      opacity: 0.75
+.play
+  @extend %playpause
+  border:
+    style: solid
+    width: 1.85em 0 1.85em 3em
 
-  &.pause
-    border-style: double
-    border-width: 0 0 0 4.5em
+.pause
+  @extend %playpause
+  border:
+    style: double
+    width: 0 0 0 3em
 
-    &:hover
-      opacity: 0.75
 
 .jump
   background: url('../public/jump.svg') no-repeat
   width: 10em
   height: 3.5em
-  background-position: center
-  background-size: 9em 3em
+  background:
+    position: center
+    size: 9em 3em
 
   &:hover
     background-size: 9.75em 4em
     opacity: 0.75
 
+
 .reset
   background: url('../public/reset.svg') no-repeat
   width: 5.5em
   height: 5.5em
-  background-position: center
-  background-size: 4.5em 4.5em
+  background:
+    position: center
+    size: 4.5em 4.5em
 
   &:hover
     background-size: 5em 5em
     opacity: 0.75
+
 
 .telemetry
   @extend %canvas-position
@@ -123,8 +156,12 @@ input[type="number"]
           &:nth-child(2)
             text-align: right
 
+  
 .checkbox
   cursor: pointer
+
+  & > input
+    cursor: pointer
 
 .tooltip
   border-bottom: 0.1em dashed #999
@@ -142,9 +179,6 @@ input[type="number"]
     & > li
       margin-top: var(--setting-spacing)
 
-      & > label
-        & > div
-          display: inline-block
 
 @media (min-width: 1320px)
   .app
@@ -159,6 +193,7 @@ input[type="number"]
 
   .settings
     flex-flow: row
+
 
 footer
   display: flex

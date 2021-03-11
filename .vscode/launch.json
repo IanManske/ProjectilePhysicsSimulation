@@ -7,10 +7,11 @@
             "request": "launch",
             "preLaunchTask": "Watch Client",
             "url": "http://localhost:8080",
-            "webRoot": "${workspaceFolder}/src",
+            "webRoot": "${workspaceFolder}",
             "sourceMaps": true,
             "sourceMapPathOverrides": {
-                "webpack:///*": "${workspaceFolder}/*",
+                "webpack:///./~/*": "${workspaceFolder}/node_modules/*",
+                "webpack://?:*/*": "${workspaceFolder}/*"
             }
         },
         {
@@ -19,11 +20,17 @@
             "request": "launch",
             "preLaunchTask": "Watch Client",
             "url": "http://localhost:8080",
-            "webRoot": "${workspaceFolder}/src",
-            "sourceMaps": true,
-            "sourceMapPathOverrides": {
-                "webpack:///*": "${workspaceFolder}/*",
-            }
+            "webRoot": "${workspaceFolder}",
+            "pathMappings": [
+                {
+                    "url": "webpack://fable/src",
+                    "path": "${workspaceFolder}/src"
+                },
+                {
+                    "url": "webpack://projectilephysicssimulation/src",
+                    "path": "${workspaceFolder}/src"
+                }
+            ]
         },
         {
             "name": "Debug with Browser-Preview",
@@ -31,10 +38,10 @@
             "request": "launch",
             "preLaunchTask": "Watch Client",
             "url": "http://localhost:8080",
-            "webRoot": "${workspaceFolder}/src",
-            "sourceMaps": true,
+            "webRoot": "${workspaceFolder}",
             "sourceMapPathOverrides": {
-                "webpack:///*": "${workspaceFolder}/*",
+                "webpack:///./~/*": "${workspaceFolder}/node_modules/*",
+                "webpack://?:*/*": "${workspaceFolder}/*"
             }
         }
     ],

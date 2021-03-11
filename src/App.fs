@@ -2,75 +2,7 @@ module ProjectilePhysicsSimulation.App
 
 open FSharp.Data.UnitSystems.SI.UnitSymbols
 open Physics
-open Graphics
 
-open Fable.Core
-open Fable.Core.JsInterop
-open Fable.React
-open Fable.React.Props
-open Elmish
-open Browser.Dom
-
-importAll "../sass/main.sass"
-
-let width = 1000
-let height = 600
-
-let init () =
-  let projectileLength = 25<m>
-  let mass = 100.0<kg>
-  let initialSpeed = 105.0<m/s>
-  let initialAngle = 60.0<deg>
-  let position =
-    { X = 15.0<m>
-      Y = 15.0<m> }
-  let velocity = magnitudeDegreesToVector initialSpeed initialAngle
-  let accelerationGravity = -9.8<m/s^2>
-  let dragConstant = 0.0<kg/m>
-  let acceleration = calcAcceleration accelerationGravity dragConstant velocity mass
-  let projectile =
-    { Width = projectileLength
-      Height = projectileLength
-      Mass = mass
-      Position = position
-      Velocity = velocity
-      Acceleration = acceleration
-      PrevAcceleration = zero2D }
-
-  let model =
-    { Projectile = projectile
-      InitialSpeed = initialSpeed
-      InitialAngle = initialAngle
-      InitialPosition = position
-      AccelerationGravity = accelerationGravity
-      DragConstant = dragConstant
-      ShowTrajectory = true
-      ShowVelocityMarker = true
-      TraceInterval = 1.0<_>
-      LastTracer = 0.0<_>
-      Started = false
-      Running = false
-      SimulationSpeed = 2.5
-      JumpStep = 1.0<_>
-      Time = 0.0<_>
-      LeftOverTime = 0.0<_> }
-
-  // Initialize canvases
-  let initCanvas = initCanvasWith width height
-  
-  initCanvas trajectoryCanvas trajectoryContext
-  initCanvas bodyCanvas bodyContext
-  initCanvas velocityCanvas velocityContext
-
-  trajectoryContext.fillStyle <- U3.Case1 "black"
-  bodyContext.fillStyle <- U3.Case1 "blue"
-  velocityContext.strokeStyle <- U3.Case1 "red"
-
-  // Draw initial state of projectile
-  drawBody projectile
-  drawVelocityMarker projectile
-
-  model
 
 // ----Update----
 type Message =
@@ -91,86 +23,107 @@ type Message =
   | Jump
   | Reset
 
-let rec loop dispatch last t =
-  dispatch <| NextFrame ((t - last) * 1.0<ms>)
-  window.requestAnimationFrame((loop dispatch t)) |> ignore
 
-// Let program subscribe to frame updates from the browser
-let animiate _ = Cmd.ofSub <| fun d -> loop d 0.0 0.0
+let simulateAndDraw model totalTime =
+  Graphics.clearBody model.Projectile
+  Graphics.clearVelocityMarker model.Projectile
 
-type Float = float
+  let newModel, tracers = simulate model totalTime
+
+  Graphics.drawBody newModel.Projectile
+  Graphics.drawVelocityMarker newModel.Projectile
+
+  tracers |> Seq.iter Graphics.drawTracer
+  newModel
+
+let newAcceleration model =
+  model |>
+    if model.Running
+    then id
+    else Model.recalculateAcceleration
+
+let inline clamp low high = max low >> min high
+
 
 let update message model =
   match message with
   | SetInitialSpeed v ->
-      clearVelocityMarker model.Projectile
-      let projectile = { model.Projectile with Velocity = magnitudeDegreesToVector v model.InitialAngle }
-      drawVelocityMarker projectile
+      Graphics.clearVelocityMarker model.Projectile
+      let projectile = { model.Projectile with Velocity = Vector2.ofMagnitudeDegrees v model.InitialAngle }
+      Graphics.drawVelocityMarker projectile
       { model with
           InitialSpeed = v
           Projectile = projectile }
+
   | SetInitialAngle a ->
-      clearVelocityMarker model.Projectile
-      let projectile = { model.Projectile with Velocity = magnitudeDegreesToVector model.InitialSpeed a }
-      drawVelocityMarker projectile
+      Graphics.clearVelocityMarker model.Projectile
+      let projectile = { model.Projectile with Velocity = Vector2.ofMagnitudeDegrees model.InitialSpeed a }
+      Graphics.drawVelocityMarker projectile
       { model with
           InitialAngle = a
           Projectile = projectile }
+
   | SetInitialX x ->
-      clearBody model.Projectile
-      clearVelocityMarker model.Projectile
-      let position = { model.InitialPosition with X = x }
+      Graphics.clearBody model.Projectile
+      Graphics.clearVelocityMarker model.Projectile
+      let position = model.InitialPosition |> Vector2.withX x
       let projectile = { model.Projectile with Position = position }
-      drawBody projectile
-      drawVelocityMarker projectile
+      Graphics.drawBody projectile
+      Graphics.drawVelocityMarker projectile
       { model with
           Projectile = projectile
           InitialPosition = position }
+          
   | SetInitialY y ->
-      clearBody model.Projectile
-      clearVelocityMarker model.Projectile
-      let position = { model.InitialPosition with Y = y }
+      Graphics.clearBody model.Projectile
+      Graphics.clearVelocityMarker model.Projectile
+      let position = model.InitialPosition |> Vector2.withY y
       let projectile = { model.Projectile with Position = position }
-      drawBody projectile
-      drawVelocityMarker projectile
+      Graphics.drawBody projectile
+      Graphics.drawVelocityMarker projectile
       { model with
           Projectile = projectile
           InitialPosition = position }
+
   | SetMass m ->
-      let mass = max (Float.Epsilon * 1.0<_>) m
-      if model.Started then
-        { model with Projectile = { model.Projectile with Mass = mass } }
-      else
-        let acceleration = calcAccelerationUsing model model.Projectile.Velocity mass
-        { model with
-            Projectile =
-              { model.Projectile with
-                  Mass = mass
-                  Acceleration = acceleration } }
+      { model with Projectile = { model.Projectile with Mass = max Body.minMass m } }
+      |> newAcceleration
+
   | SetAccelerationGravity a ->
-      if model.Started then
-        { model with AccelerationGravity = a }
-      else
-        { model with
-            AccelerationGravity = a
-            Projectile = { model.Projectile with Acceleration = calcBodyAcceleration a model.DragConstant model.Projectile } }
+      { model with AccelerationGravity = a }
+      |> newAcceleration
+
   | SetDragConstant c ->
-      let airFrictionConstant = max 0.0<_> c
-      if model.Started then
-        { model with DragConstant = airFrictionConstant }
-      else
-        { model with
-            DragConstant = airFrictionConstant
-            Projectile = { model.Projectile with Acceleration = calcBodyAcceleration model.AccelerationGravity airFrictionConstant model.Projectile } }
+      { model with DragConstant = max Model.minDragConstant c }
+      |> newAcceleration
+
   | ToggleShowTrajectory ->
-      trajectoryCanvas.hidden <- model.ShowTrajectory
+      Graphics.trajectoryCanvas.hidden <- model.ShowTrajectory
       { model with ShowTrajectory = not model.ShowTrajectory }
+
   | ToggleShowVelocity ->
-      velocityCanvas.hidden <- model.ShowVelocityMarker
+      Graphics.velocityCanvas.hidden <- model.ShowVelocityMarker
       { model with ShowVelocityMarker = not model.ShowVelocityMarker }
-  | SetTraceInterval s -> { model with TraceInterval = max timeStep s }
-  | SetJumpStep j -> { model with JumpStep = max timeStep j }
-  | SetSimulationSpeed x -> { model with SimulationSpeed = max 0.0 x }
+
+  | SetTraceInterval s ->
+      let trace = max Model.minTraceInterval s
+      if trace <> model.TraceInterval then
+        let lastTracer =
+          if model.Time - model.LastTracer >= model.TraceInterval then
+            Graphics.drawTracer <| Body.center model.Projectile
+            model.Time
+          else
+            model.LastTracer
+        { model with
+            TraceInterval = trace
+            LastTracer = lastTracer }
+      else
+        model
+
+  | SetJumpStep j -> { model with JumpStep = j |> clamp Model.minJumpStep Model.maxJumpStep }
+
+  | SetSimulationSpeed x -> { model with SimulationSpeed = x |> clamp Model.minSpeed Model.maxSpeed }
+
   | StartStop ->
       if model.Running then
         { model with
@@ -178,39 +131,46 @@ let update message model =
             LeftOverTime = 0.0<_> }
       else
         { model with Running = true }
+
   | NextFrame t ->
       if model.Running
       then simulateAndDraw model ((min 0.1<_> (t / 1000.0<ms/s>)) * model.SimulationSpeed + model.LeftOverTime)
       else model
+
   | Jump -> simulateAndDraw model model.JumpStep
+
   | Reset ->
-      clearBody model.Projectile
-      clearVelocityMarker model.Projectile
-      clear trajectoryContext
+      Graphics.clearBody model.Projectile
+      Graphics.clearVelocityMarker model.Projectile
+      Graphics.clear Graphics.trajectoryContext
       let projectile =
-        let velocity = magnitudeDegreesToVector model.InitialSpeed model.InitialAngle
-        let acceleration = calcAccelerationUsing model velocity model.Projectile.Mass
+        let velocity = Vector2.ofMagnitudeDegrees model.InitialSpeed model.InitialAngle
+        let acceleration = Model.acceleration model velocity model.Projectile.Mass
         { model.Projectile with
             Position = model.InitialPosition
             Velocity = velocity
             Acceleration = acceleration
-            PrevAcceleration = zero2D }
-      drawBody projectile
-      drawVelocityMarker projectile
+            PrevAcceleration = Vector2.zero }
+      Graphics.drawBody projectile
+      Graphics.drawVelocityMarker projectile
+      Graphics.drawTracer <| Body.center projectile
       { model with
           Projectile = projectile
           Time = 0.0<_>
           LeftOverTime = 0.0<_>
           LastTracer = 0.0<_>
-          Started = false
           Running = false }
 
+
+
 // ----View----
-open Elmish.React
+open Fable.React
+open Fable.React.Props
 
+let unit unitName = [ str unitName ]
 let withSub subscript text = [ str text; sub [] [ str subscript ] ]
-
 let withSuper superscript text = [ str text; sup [] [ str superscript ] ]
+
 
 let checkbox text message isChecked dispatch =
   li []
@@ -218,31 +178,35 @@ let checkbox text message isChecked dispatch =
         [ input
             [ Type "checkbox"
               Checked isChecked
-              OnChange <| fun _ -> dispatch message ]
+              OnChange (fun _ -> dispatch message) ]
           str text ] ]
 
-let inline numberInputUnit attributes unit message value dispatch =
-  div []
+
+let inline numberInputUnitWith attributes unit message value dispatch =
+  div [ Style [ Display DisplayOptions.InlineBlock ] ]
     [ input
         [ Type "number"
-          valueOrDefault value
-          OnChange <| fun e -> dispatch <| message (float e.Value * 1.0<_>)
+          DefaultValue value
+          Step "any"
+
+          OnChange (fun e ->
+            try (float e.Value) * 1.0<_> |> message |> dispatch
+            with | _ -> ())
+            
           yield! attributes ]
       yield! unit ]
 
-let inline numberInput attributes unitName = numberInputUnit attributes [ str unitName ]
+let inline numberInputUnit unit = numberInputUnitWith [] unit
 
-let inline viewSettingUnit attributes name unit message value dispatch =
+
+let inline settingInputUnitWith attributes name unit message value dispatch =
   li []
     [ label []
-        [ span []
-            [ str <| name + ":" ]
-          numberInputUnit attributes unit message value dispatch ] ]
+        [ str <| name + ":"
+          numberInputUnitWith attributes unit message value dispatch ] ]
 
-let inline viewSetting attributes name unitName = viewSettingUnit attributes name ([ str unitName ])
+let inline settingInputUnit name = settingInputUnitWith [] name
 
-let inline viewInitialSetting name unitName message value started dispatch =
-  viewSetting [ Disabled started ] ("Initial " + name) unitName message value dispatch 
 
 let inline telemetryEntryWith name value =
   tr []
@@ -254,40 +218,32 @@ let inline telemetryEntryWith name value =
 
 let inline telemetryEntry name = telemetryEntryWith [ str name ]
 
-let inline telemetryEntrySub name sub = telemetryEntryWith (name |> withSub sub)
-
-// Projectile has no thrust, so air friction slows it down fast.
-// Scale the step on the friction constant input using a magic number:
-let frictionScale = 2500.0
 
 let view model dispatch =
   ofList
     [ div
         [ ClassName "simulation"
           Key "simulation"
-          Style [ Width width ] ]
+          Style [ Width Graphics.width ] ]
         [ div
             [ ClassName "controls"
-              Style [ MarginTop height ] ]
+              Style [ MarginTop Graphics.height ] ]
             [ button
-                [ Type "button"
-                  classBaseList
-                    "playpause"
-                    [ "play", not model.Running
-                      "pause", model.Running ]
-                  Title <| if model.Running then "Pause" else "Play"
+                [ let playpause = if model.Running then "Pause" else "Play"
+                  Type "button"
+                  ClassName (playpause.ToLower())
+                  Title playpause
                   OnClick <| fun _ -> dispatch StartStop ]
                 []
               label []
                 [ str "Speed:"
-                  input
-                    [ Type "number"
-                      ClassName "number-input"
-                      Min 0
-                      Step 0.25
-                      valueOrDefault model.SimulationSpeed
-                      OnChange <| fun e -> dispatch <| SetSimulationSpeed (float e.Value) ]
-                  str "x" ]
+                  numberInputUnitWith
+                    [ Min 0
+                      Max Model.maxSpeed ]
+                    (unit "x")
+                    SetSimulationSpeed
+                    model.SimulationSpeed
+                    dispatch ]
               div []
                 [ button
                     [ Type "button"
@@ -295,16 +251,15 @@ let view model dispatch =
                       Title "Jump"
                       OnClick <| fun _ -> dispatch Jump ]
                     []
-                  lazyView2
-                    (numberInput
-                      [ Style
-                          [ Width "3em"
-                            MarginLeft 0
-                            MarginTop "0.1em" ]
-                        Min 0
-                        Step 0.25 ]
-                      "s"
-                      SetJumpStep)
+                  numberInputUnitWith
+                    [ Style
+                        [ Width "3em"
+                          MarginLeft 0
+                          MarginTop "0.1em" ]
+                      Min 0
+                      Max Model.maxJumpStep ]
+                    (unit "s")
+                    SetJumpStep
                     model.JumpStep
                     dispatch ]
               button
@@ -320,51 +275,87 @@ let view model dispatch =
                 [ str "Telemetry" ]
               table []
                 [ tbody []
-                    [ lazyView (telemetryEntry "T") model.Time
-                      lazyView (telemetryEntry "X") model.Projectile.Position.X
-                      lazyView (telemetryEntry "Y") model.Projectile.Position.Y
-                      lazyView (telemetryEntrySub "V" "x") model.Projectile.Velocity.X
-                      lazyView (telemetryEntrySub "V" "y") model.Projectile.Velocity.Y
-                      lazyView (telemetryEntrySub "A" "x") model.Projectile.Acceleration.X
-                      lazyView (telemetryEntrySub "A" "y") model.Projectile.Acceleration.Y ] ] ] ]
+                    [ telemetryEntry "T" model.Time
+                      telemetryEntry "X" model.Projectile.Position.X
+                      telemetryEntry "Y" model.Projectile.Position.Y
+                      telemetryEntryWith ("V" |> withSub "x") model.Projectile.Velocity.X
+                      telemetryEntryWith ("V" |> withSub "y") model.Projectile.Velocity.Y
+                      telemetryEntryWith ("A" |> withSub "x") model.Projectile.Acceleration.X
+                      telemetryEntryWith ("A" |> withSub "y") model.Projectile.Acceleration.Y ] ] ] ]
       div
         [ ClassName "settings"
           Key "settings" ]
         [ ul []
-            [ lazyView2 (checkbox "Show Velocity Marker" ToggleShowVelocity) model.ShowVelocityMarker dispatch
-              lazyView2 (checkbox "Show Trajectory" ToggleShowTrajectory) model.ShowTrajectory dispatch
-              lazyView2 (viewSetting [ Min 0; Step 0.25 ] "Trace Trajectory Every" "s" SetTraceInterval) (if model.TraceInterval = timeStep then 0.0<_> else model.TraceInterval) dispatch ]
+            [ checkbox "Show Velocity Marker" ToggleShowVelocity model.ShowVelocityMarker dispatch
+              checkbox "Show Trajectory" ToggleShowTrajectory model.ShowTrajectory dispatch
+              settingInputUnitWith
+                [ Min 0 ]
+                "Trace Trajectory Every"
+                (unit "s")
+                SetTraceInterval
+                model.TraceInterval
+                dispatch ]
           ul []
-            [ lazyView2 (viewSetting [ Min 0; ] "Mass" "kg" SetMass) (if float model.Projectile.Mass = Float.Epsilon then 0.0<_> else model.Projectile.Mass) dispatch
-              lazyView2 (viewSettingUnit [] "Gravity" ("m/s" |> withSuper "2") SetAccelerationGravity) model.AccelerationGravity dispatch
+            [ settingInputUnitWith
+                [ Min 0 ]
+                "Mass"
+                (unit "kg")
+                SetMass
+                model.Projectile.Mass
+                dispatch
+              settingInputUnit
+                "Gravity"
+                ("m/s" |> withSuper "2")
+                SetAccelerationGravity
+                model.AccelerationGravity
+                dispatch
               li []
                 [ label []
                     [ span [ Title "Combined Drag Constant = fluid density (kg/m^3) * contact area (m^2) * drag coefficient (unitless) / 2" ]
                         [ u [ ClassName "tooltip" ]
                             [ str "Combined Drag Constant" ]
                           str ":" ]
-                      lazyView2
-                        (numberInput
-                          [ Min 0
-                            Step (model.Projectile.Mass / frictionScale) ]
-                          "kg/m"
-                          SetDragConstant)
+                      numberInputUnitWith
+                        [ Min 0 ]
+                        (unit "kg/m")
+                        SetDragConstant
                         model.DragConstant
                         dispatch ] ] ]
           ul []
-            [ lazyView3 (viewInitialSetting "X" "m" SetInitialX) model.InitialPosition.X model.Started dispatch
-              lazyView3 (viewInitialSetting "Y" "m" SetInitialY) model.InitialPosition.Y model.Started dispatch
-              lazyView3 (viewInitialSetting "Speed" "m/s" SetInitialSpeed) model.InitialSpeed model.Started dispatch
-              lazyView3 (viewInitialSetting "Angle" "deg" SetInitialAngle) model.InitialAngle model.Started dispatch ] ] ]
+            [ let inline initSetting name u = settingInputUnitWith [ Disabled (Model.started model) ] name (unit u)
+              initSetting "Initial X" "m" SetInitialX model.InitialPosition.X dispatch
+              initSetting "Initial Y" "m" SetInitialY model.InitialPosition.Y dispatch
+              initSetting "Initial Speed" "m/s" SetInitialSpeed model.InitialSpeed dispatch
+              initSetting "Initial Angle" "deg" SetInitialAngle model.InitialAngle dispatch ] ] ]
+
+
 
 // ----App----
-open Elmish.Debug
+open Elmish
+open Elmish.React
+#if DEBUG
 open Elmish.HMR
+open Elmish.Debug
+#endif
+
+let init () =
+  let model = Model.initial
+
+  // Draw initial state of projectile
+  Graphics.drawBody model.Projectile
+  Graphics.drawVelocityMarker model.Projectile
+  Graphics.drawTracer <| Body.center model.Projectile
+
+  model
+
+let rec loop dispatch last t =
+  dispatch <| NextFrame ((t - last) * 1.0<ms>)
+  Browser.Dom.window.requestAnimationFrame((loop dispatch t)) |> ignore
 
 Program.mkSimple init update view
 #if DEBUG
 |> Program.withDebugger
 #endif
 |> Program.withReactBatched "elmish-app"
-|> Program.withSubscription animiate
+|> Program.withSubscription (fun _ -> Cmd.ofSub <| fun d -> loop d 0.0 0.0)
 |> Program.run

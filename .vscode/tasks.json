@@ -8,13 +8,6 @@
             "command": "npm",
             "args": [ "start" ],
             "type": "shell",
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "vsCodeSession": "true",
-                    "safeClientOnly": "true"
-                }
-            },
             "group": "build",
             "isBackground": true,
             "problemMatcher": {
