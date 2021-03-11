@@ -24,8 +24,9 @@ jobs:
         node-version: 12.x
     
     - name: Install and Build
-      run: npm ci
-      run: npm run build
+      run: |
+        npm ci
+        npm run build
       env:
         CI: true
 
