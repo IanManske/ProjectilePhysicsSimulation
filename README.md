@@ -1,4 +1,4 @@
-# Projectile Physics Simulation ![Github Pages Status](https://github.com/IanManske/ProjectilePhysicsSimulation/actions/workflows/main.yaml/badge.svg)
+# Projectile Physics Simulation ![Github Pages Status](https://github.com/IanManske/ProjectilePhysicsSimulation/actions/workflows/master.yaml/badge.svg)
 
 
 A simple web app that simulates a projectile being launched in 2D space. <br/>
