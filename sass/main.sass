@@ -53,10 +53,16 @@ input[type="number"]
   &:invalid
     border-color: red
 
+  &:disabled
+    opacity: 0.5
+
+
 
 .app
   display: flex
-
+  flex:
+    direction: row
+    wrap: wrap
 
 %canvas-position
   position: absolute
@@ -65,8 +71,9 @@ input[type="number"]
 
 .canvases
   @extend %canvas-position
-  padding: var(--border-width)
-  overflow: visible
+  
+  & > canvas
+    margin: var(--border-width)
 
 .simulation
   border: solid var(--border-width) black
@@ -169,30 +176,17 @@ input[type="number"]
 
 .settings
   display: flex
-  justify-content: space-between
-  margin: var(--margin-size)
-  margin-bottom: calc(var(--margin-size) + var(--setting-spacing))
+  --wrap-width: 17em
+  min-width: var(--wrap-width)
+  flex:
+    direction: column
+    basis: var(--wrap-width)
+    grow: 1
+  justify-content: space-around
 
   & > ul
-    margin-right: 0.5em
-
     & > li
-      margin-top: var(--setting-spacing)
-
-
-@media (min-width: 1320px)
-  .app
-    flex-flow: row
-
-  .settings
-    flex-flow: column
-
-@media (max-width: 1319px)
-  .app
-    flex-flow: column
-
-  .settings
-    flex-flow: row
+      margin: var(--setting-spacing)
 
 
 footer

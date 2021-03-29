@@ -57,17 +57,6 @@ module Vector2 =
     then zero
     else normalizeUnsafe vector
 
-  // Returns the Vector2 with the lower magnitude.
-  let min a b =
-    if magnitude a < magnitude b
-    then a
-    else b
-  
-  //let max a b =
-    //if magnitude a > magnitude b
-    //then a
-    //else b
-
 type Vector2<[<Measure>]'u> with
   member this.X = Vector2.X this
   member this.Y = Vector2.Y this
@@ -133,17 +122,8 @@ module Model =
   // c (kg/m) = fluid density * contact area * drag coefficient / 2
   // Force drag (kg m/s^2) = c (kg/m) * v^2 (m^2/s^2) * [direction]
   let private accclerationDrag (constant: float<kg/m>) (velocity: Vector2<m/s>) mass =
-    Vector2.min
-      (-1.0<_> .*.. velocity)
-      (-constant * (velocity .* velocity) .*.. (Vector2.normalize velocity) ./ mass)
+    -constant * (velocity .* velocity) .*.. (Vector2.normalize velocity) ./ mass
 
-  // If Force drag is too large, then the velocity may suddenly change to a large negative value on the next frame when it should stop at 0.
-  // Then on the next frame (2), the force due to drag will be large and in the direction of the original velocity.
-  // So again on the next frame (3), this causes the velocity to flip back to its original direction.
-  // This pattern would continue, essentially breaking the simulation.
-  // This can happen because the time step may not be small enough; it applies the acceleration all in one go, when in reality it would be gradual and decreasing.
-  // Because of this, the acceleration due to drag is clamped to not be larger in magnitude than the velocity (thereby fixing this bug),
-  // but the projectile probably takes longer to slow down in the simulation than in reality in the cases where the clamping comes into effect.
 
   let private calculateAcceleration gravity dragConstant velocity mass =
     accclerationDrag dragConstant velocity mass
@@ -159,7 +139,7 @@ module Model =
   let initial =
     let projectileLength = 25<m>
     let mass = 100.0<kg>
-    let initialSpeed = 105.0<m/s>
+    let initialSpeed = 90.0<m/s>
     let initialAngle = 60.0<deg>
     let position = Vector2(15.0<m>, 15.0<m>)
     let velocity = Vector2.ofMagnitudeDegrees initialSpeed initialAngle
@@ -202,37 +182,19 @@ let private move body (time: float<s>) newAcceleration =
       PrevAcceleration = body.Acceleration },
   deltaPosition
 
-
-let private lerpDelta a delta alpha = a .+ alpha .*.. delta
-
-//let lerp a b = lerpDelta a (b .- a)
-//let lerp a b delta = (1 - alpha) .*.. a + alpha .*.. b
-
-
-let simulate model time =
-  let numSteps = time / timeStep |> floor |> int
-  let tracers = ResizeArray()
+let simulate otherSideEffects model timeToSimulate =
+  let numSteps = timeToSimulate / timeStep |> floor |> int
   let mutable projectile = model.Projectile
 
   for step = 1 to numSteps do
     let newProjectile, deltaPosition = move projectile timeStep (Model.bodyAcceleration model projectile)
-    let timeAfterTracer = (model.Time - model.LastTracer) + (timeStep * float step - model.TraceInterval * float (tracers.Count + 1))
-
-    if timeAfterTracer >= 0.0<_> then
-      // alpha: how far into the timeStep the tracer should be drawn. [ 0 = start of timeStep, 1 = end of timeStep ]
-      // Blend / perform a linear interpolation based on alpha:
-      ((timeStep - timeAfterTracer) / timeStep) // alpha
-      |> lerpDelta (Body.center projectile) deltaPosition // alpha -> tracerPosition
-      |> tracers.Add // tracerPosition -> add to list
-
+    otherSideEffects projectile deltaPosition (timeStep * float step) // Allows data in between frames to be accessed, in this case used to draw trajectory tracers
     projectile <- newProjectile
 
-  let elapsedTime = timeStep * float numSteps
-  let newTime = model.Time + elapsedTime
-
+  let simulatedTime = timeStep * float numSteps
+  let newTime = model.Time + simulatedTime
   { model with
       Time = newTime
-      LeftOverTime = time - elapsedTime
+      LeftOverTime = timeToSimulate - simulatedTime
       LastTracer = newTime - ((newTime - model.LastTracer) % model.TraceInterval)
-      Projectile = projectile },
-  tracers
+      Projectile = projectile }
