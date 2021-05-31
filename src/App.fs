@@ -24,126 +24,103 @@ type Message =
   | Reset
 
 
-let simulateAndDraw model totalTime =
-  let newModel = simulate (Graphics.maybeDrawTracer model) model totalTime
-  Graphics.redrawBody newModel.Projectile
-  Graphics.redrawVelocityMarker newModel.Projectile
-  newModel
-
-let newAcceleration model =
-  model |>
-    if model.Running
-    then id
-    else Model.recalculateAcceleration
-
 let inline clamp low high = max low >> min high
 
+let simulateAndDraw sim totalTime =
+  let sim = Simulation.simulate (Graphics.maybeDrawTracer sim) sim totalTime
+  Graphics.redrawBody sim.Projectile
+  Graphics.redrawVelocityMarker sim.Projectile
+  sim
 
-let update message model =
+let newPosition settings sim =
+  let sim = sim |> Simulation.withSettings settings
+  Graphics.redrawAll sim.Projectile
+  sim
+
+let newVelocity settings sim =
+  let sim = sim |> Simulation.withSettings settings
+  Graphics.redrawVelocityMarker sim.Projectile
+  sim
+
+let newAcceleration settings sim =
+  if sim.Running
+  then { sim with Settings = settings }
+  else sim |> Simulation.withSettings settings
+
+let update message sim =
   match message with
-  | SetInitialSpeed v ->
-      let projectile = { model.Projectile with Velocity = Vector2.ofMagnitudeDegrees v model.InitialAngle }
-      Graphics.redrawVelocityMarker projectile
-      { model with
-          InitialSpeed = v
-          Projectile = projectile }
+  | SetInitialSpeed v -> sim |> newVelocity { sim.Settings with InitialSpeed = v }
 
-  | SetInitialAngle a ->
-      let projectile = { model.Projectile with Velocity = Vector2.ofMagnitudeDegrees model.InitialSpeed a }
-      Graphics.redrawVelocityMarker projectile
-      { model with
-          InitialAngle = a
-          Projectile = projectile }
+  | SetInitialAngle a -> sim |> newVelocity { sim.Settings with InitialAngle = a }
 
-  | SetInitialX x ->
-      let position = model.InitialPosition |> Vector2.withX x
-      let projectile = { model.Projectile with Position = position }
-      Graphics.redrawBody projectile
-      Graphics.redrawVelocityMarker projectile
-      Graphics.resetTrajectory projectile
-
-      { model with
-          Projectile = projectile
-          InitialPosition = position }
+  | SetInitialX x -> sim |> newPosition { sim.Settings with InitialPosition = sim.Settings.InitialPosition |> Vector2.withX x }
           
-  | SetInitialY y ->
-      let position = model.InitialPosition |> Vector2.withY y
-      let projectile = { model.Projectile with Position = position }
-      Graphics.redrawAll projectile
-      { model with
-          Projectile = projectile
-          InitialPosition = position }
+  | SetInitialY y -> sim |> newPosition { sim.Settings with InitialPosition = sim.Settings.InitialPosition |> Vector2.withY y }
 
   | SetMass m ->
-      { model with Projectile = { model.Projectile with Mass = max Body.minMass m } }
-      |> newAcceleration
+      let projectile = { sim.Projectile with Mass = max Body.minMass m }
+      if sim.Running
+      then { sim with Projectile = projectile }
+      else { sim with Projectile = Simulation.initialProjectile sim.Settings projectile }
 
-  | SetAccelerationGravity a ->
-      { model with AccelerationGravity = a }
-      |> newAcceleration
+  | SetAccelerationGravity a -> sim |> newAcceleration { sim.Settings with AccelerationGravity = a }
 
-  | SetDragConstant c ->
-      { model with DragConstant = max Model.minDragConstant c }
-      |> newAcceleration
+  | SetDragConstant c -> sim |> newAcceleration { sim.Settings with DragConstant = max Simulation.minDragConstant c }
 
   | ToggleShowTrajectory ->
-      Graphics.trajectoryCanvas.hidden <- model.ShowTrajectory
-      { model with ShowTrajectory = not model.ShowTrajectory }
+      Graphics.trajectoryCanvas.hidden <- sim.Settings.ShowTrajectory
+      { sim with Settings = { sim.Settings with ShowTrajectory = not sim.Settings.ShowTrajectory } }
 
   | ToggleShowVelocity ->
-      Graphics.velocityCanvas.hidden <- model.ShowVelocityMarker
-      { model with ShowVelocityMarker = not model.ShowVelocityMarker }
+      Graphics.velocityCanvas.hidden <- sim.Settings.ShowVelocityMarker
+      { sim with Settings = { sim.Settings with ShowVelocityMarker = not sim.Settings.ShowVelocityMarker } }
 
   | SetTraceInterval s ->
-      let trace = max Model.minTraceInterval s
-      if trace <> model.TraceInterval then
+      let trace = max Simulation.minTraceInterval s
+      if trace <> sim.Settings.TraceInterval then
         let lastTracer =
-          if model.Time - model.LastTracer >= model.TraceInterval then
-            Graphics.drawTracer <| Body.center model.Projectile
-            model.Time
+          if sim.Time - sim.LastTracer >= sim.Settings.TraceInterval then
+            Graphics.drawTracer <| Body.center sim.Projectile
+            sim.Time
           else
-            model.LastTracer
-        { model with
-            TraceInterval = trace
-            LastTracer = lastTracer }
+            sim.LastTracer
+        { sim with
+            LastTracer = lastTracer
+            Settings = { sim.Settings with TraceInterval = trace } }
       else
-        model
+        sim
 
-  | SetJumpStep j -> { model with JumpStep = j |> clamp Model.minJumpStep Model.maxJumpStep }
+  | SetJumpStep j ->
+      { sim with Settings = { sim.Settings with JumpStep = j |> clamp Simulation.minJumpStep Simulation.maxJumpStep } }
 
-  | SetSimulationSpeed x -> { model with SimulationSpeed = x |> clamp Model.minSpeed Model.maxSpeed }
+  | SetSimulationSpeed x ->
+      { sim with Settings = { sim.Settings with SimulationSpeed = x |> clamp Simulation.minSpeed Simulation.maxSpeed } }
 
   | StartStop ->
-      if model.Running then
-        { model with
+      if sim.Running then
+        { sim with
             Running = false
             LeftOverTime = 0.0<_> }
       else
-        { model with Running = true }
+        { sim with Running = true }
 
   | NextFrame t ->
-      if model.Running && model.SimulationSpeed > 0.0
-      then simulateAndDraw model ((min 0.1<_> (t / 1000.0<ms/s>)) * model.SimulationSpeed + model.LeftOverTime)
-      else model
+      if sim.Running && sim.Settings.SimulationSpeed > 0.0
+      then simulateAndDraw sim ((min 0.1<_> (t / 1000.0<ms/s>)) * sim.Settings.SimulationSpeed + sim.LeftOverTime)
+      else sim
 
-  | Jump -> simulateAndDraw model model.JumpStep
+  | Jump -> simulateAndDraw sim sim.Settings.JumpStep
 
   | Reset ->
-      let projectile =
-        let velocity = Vector2.ofMagnitudeDegrees model.InitialSpeed model.InitialAngle
-        let acceleration = Model.acceleration model velocity model.Projectile.Mass
-        { model.Projectile with
-            Position = model.InitialPosition
-            Velocity = velocity
-            Acceleration = acceleration
-            PrevAcceleration = Vector2.zero }
+      let projectile = Simulation.initialProjectile sim.Settings sim.Projectile
       Graphics.redrawAll projectile
-      { model with
+      { sim with
           Projectile = projectile
           Time = 0.0<_>
           LeftOverTime = 0.0<_>
           LastTracer = 0.0<_>
           Running = false }
+
 
 
 
@@ -193,12 +170,13 @@ let inline settingInputUnitWith attributes name unit message value dispatch =
 let inline settingInputUnit name = settingInputUnitWith [] name
 
 
-let controls model dispatch =
+let controls running settings dispatch =
+  printf "controls"
   div
     [ ClassName "controls"
       Style [ MarginTop Graphics.height ] ]
     [ button
-        [ let playpause = if model.Running then "Pause" else "Play"
+        [ let playpause = if running then "Pause" else "Play"
           Type "button"
           ClassName (playpause.ToLower())
           Title playpause
@@ -208,10 +186,10 @@ let controls model dispatch =
         [ str "Speed:"
           numberInputUnitWith
             [ Min 0
-              Max Model.maxSpeed ]
+              Max Simulation.maxSpeed ]
             (unit "x")
             SetSimulationSpeed
-            model.SimulationSpeed
+            settings.SimulationSpeed
             dispatch ]
       div []
         [ button
@@ -226,10 +204,10 @@ let controls model dispatch =
                   MarginLeft 0
                   MarginTop "0.1em" ]
               Min 0
-              Max Model.maxJumpStep ]
+              Max Simulation.maxJumpStep ]
             (unit "s")
             SetJumpStep
-            model.JumpStep
+            settings.JumpStep
             dispatch ]
       button
         [ Type "button"
@@ -266,19 +244,19 @@ let telemetry time projectile =
               telemetryEntryWith ("A" |> withSub "y") projectile.Acceleration.Y ] ] ]
 
 
-let settings model dispatch =
+let viewSettings started mass settings dispatch =
   div
     [ ClassName "settings"
       Key "settings" ]
     [ ul []
-        [ checkbox "Show Velocity Marker" ToggleShowVelocity model.ShowVelocityMarker dispatch
-          checkbox "Show Traced Trajectory" ToggleShowTrajectory model.ShowTrajectory dispatch
+        [ checkbox "Show Velocity Marker" ToggleShowVelocity settings.ShowVelocityMarker dispatch
+          checkbox "Show Traced Trajectory" ToggleShowTrajectory settings.ShowTrajectory dispatch
           settingInputUnitWith
             [ Min 0 ]
             "Trace Trajectory Every"
             (unit "s")
             SetTraceInterval
-            model.TraceInterval
+            settings.TraceInterval
             dispatch ]
       ul []
         [ settingInputUnitWith
@@ -286,13 +264,13 @@ let settings model dispatch =
             "Mass"
             (unit "kg")
             SetMass
-            model.Projectile.Mass
+            mass
             dispatch
           settingInputUnit
             "Gravity"
             ("m/s" |> withSuper "2")
             SetAccelerationGravity
-            model.AccelerationGravity
+            settings.AccelerationGravity
             dispatch
           li []
             [ label []
@@ -304,25 +282,39 @@ let settings model dispatch =
                     [ Min 0 ]
                     (unit "kg/m")
                     SetDragConstant
-                    model.DragConstant
+                    settings.DragConstant
                     dispatch ] ] ]
       ul []
-        [ let inline initSetting name u message value = settingInputUnitWith [ Disabled (Model.started model) ] ("Initial " + name) (unit u) message value dispatch
-          initSetting "X" "m" SetInitialX model.InitialPosition.X
-          initSetting "Y" "m" SetInitialY model.InitialPosition.Y
-          initSetting "Speed" "m/s" SetInitialSpeed model.InitialSpeed
-          initSetting "Angle" "deg" SetInitialAngle model.InitialAngle ] ]
+        [ let inline initSetting name u message value = settingInputUnitWith [ Disabled started ] ("Initial " + name) (unit u) message value dispatch
+          initSetting "X" "m" SetInitialX settings.InitialPosition.X
+          initSetting "Y" "m" SetInitialY settings.InitialPosition.Y
+          initSetting "Speed" "m/s" SetInitialSpeed settings.InitialSpeed
+          initSetting "Angle" "deg" SetInitialAngle settings.InitialAngle ] ]
 
 
-let view model dispatch =
+let inline structalThenReferenceEquality (a1, b1: 'b) (a2, b2: 'b) =
+  a1 = a2 && System.Object.ReferenceEquals(b1, b2)
+
+let view sim dispatch =
   ofList
     [ div
         [ ClassName "simulation"
           Key "simulation"
           Style [ Width Graphics.width ] ]
-        [ controls model dispatch
-          telemetry model.Time model.Projectile ]
-      settings model dispatch ]
+        [ lazyView3With
+            structalThenReferenceEquality
+            controls
+            sim.Running
+            sim.Settings
+            dispatch
+          telemetry sim.Time sim.Projectile ]
+      lazyView3With
+        structalThenReferenceEquality
+        (fun (started, mass) settings -> viewSettings started mass settings)
+        (Simulation.started sim, sim.Projectile.Mass)
+        sim.Settings
+        dispatch ]
+
 
 
 
@@ -334,9 +326,9 @@ open Elmish.Debug
 #endif
 
 let init () =
-  let model = Model.initial
-  Graphics.redrawAll model.Projectile
-  model
+  let sim = Simulation.initial
+  Graphics.redrawAll sim.Projectile
+  sim
 
 let rec loop dispatch last t =
   dispatch <| NextFrame ((t - last) * 1.0<ms>)

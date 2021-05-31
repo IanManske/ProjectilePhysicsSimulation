@@ -31,6 +31,7 @@ velocityContext.strokeStyle <- U3.Case1 "red"
 
 
 
+
 let private clear (context: CanvasRenderingContext2D) =
   context.clearRect(0.0, -context.canvas.height, context.canvas.width, context.canvas.height)
 
@@ -49,7 +50,7 @@ let drawTracer (point: Vector2<_>) =
 One formula for linear interpolation:
   let lerp a b alpha = (1 - alpha) * a + alpha * b
 The phyisics simulation works by calculating changes in position.
-Substituting in the delta, a simplification occurs:
+Substituting in (a + delta) for b, a simplification occurs:
   lerp position newPosition alpha
   = lerp position (position + deltaPosition) alpha
   = (1 - alpha) * position + alpha * (position + deltaPosition)
@@ -58,10 +59,10 @@ Substituting in the delta, a simplification occurs:
 *)
 let private lerpDelta a delta alpha = a .+ alpha .*.. delta
 
-let maybeDrawTracer model =
-  let timeSinceLastTracer = model.Time - model.LastTracer
+let maybeDrawTracer sim =
+  let timeSinceLastTracer = sim.Time - sim.LastTracer
   let mutable tracerCount = 1
-  let mutable nextTracerTime = model.TraceInterval - timeSinceLastTracer
+  let mutable nextTracerTime = sim.Settings.TraceInterval - timeSinceLastTracer
 
   fun projectile deltaPosition time ->
     if time >= nextTracerTime then
@@ -70,15 +71,17 @@ let maybeDrawTracer model =
       |> lerpDelta (Body.center projectile) deltaPosition // alpha -> tracerPosition
       |> drawTracer // tracerPosition -> draw
       tracerCount <- tracerCount + 1
-      nextTracerTime <- model.TraceInterval * float tracerCount - timeSinceLastTracer
+      nextTracerTime <- sim.Settings.TraceInterval * float tracerCount - timeSinceLastTracer
 
 let resetTrajectory projectile =
   clear trajectoryContext
   drawTracer <| Body.center projectile
 
 
-let mutable private lastBody = Model.initial.Projectile
-let mutable private lastVelocityMaker = Model.initial.Projectile
+
+
+let mutable private lastBody = Simulation.initial.Projectile
+let mutable private lastVelocityMaker = Simulation.initial.Projectile
 
 
 let private clearBody projectile =
