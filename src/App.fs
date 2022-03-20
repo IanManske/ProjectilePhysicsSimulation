@@ -3,7 +3,6 @@ module ProjectilePhysicsSimulation.App
 open FSharp.Data.UnitSystems.SI.UnitSymbols
 open Physics
 
-
 // ----Update----
 type Message =
   | SetInitialSpeed of float<m/s>
@@ -125,9 +124,12 @@ let update message sim =
 
 
 // ----View----
+open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
 open Elmish.React
+
+importAll "preact/debug"
 
 let unit unitName = [ str unitName ]
 let withSub subscript text = [ str text; sub [] [ str subscript ] ]
