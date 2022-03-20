@@ -71,8 +71,6 @@ module.exports = {
   //      - MiniCssExtractPlugin: Extracts CSS from bundle to a different file
   //          To minify CSS, see https://github.com/webpack-contrib/mini-css-extract-plugin#minimizing-for-production
   //      - CopyWebpackPlugin: Copies static assets to output directory
-  // DEVELOPMENT
-  //      - HotModuleReplacementPlugin: Enables hot reloading when code changes without refreshing
   plugins: isProduction ?
       commonPlugins.concat([
           new MiniCssExtractPlugin({ filename: "style.css" }),
@@ -84,17 +82,16 @@ module.exports = {
             noErrorOnMissing: true
           }] })
       ])
-      : commonPlugins.concat([
-          new webpack.HotModuleReplacementPlugin(),
-      ]),
+      : commonPlugins,
 
   // Configuration for webpack-dev-server
   devServer: {
-      publicPath: "/",
-      contentBase: resolve(config.assetsDir),
-      port: config.devServerPort,
-      hot: true,
-      inline: true
+    static: {
+        publicPath: "/",
+        directory: resolve(config.assetsDir)
+    },
+    port: config.devServerPort,
+    hot: true
   },
 
   // - sass-loaders: transforms SASS/SCSS into JS

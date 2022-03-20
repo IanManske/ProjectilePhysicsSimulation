@@ -3,9 +3,8 @@
     "configurations": [
         {
             "name": "Debug with Chrome",
-            "type": "chrome",
+            "type": "pwa-chrome",
             "request": "launch",
-            "preLaunchTask": "Watch Client",
             "url": "http://localhost:8080",
             "webRoot": "${workspaceFolder}",
             "sourceMaps": true,
@@ -18,7 +17,6 @@
             "name": "Debug with Firefox",
             "type": "firefox",
             "request": "launch",
-            "preLaunchTask": "Watch Client",
             "url": "http://localhost:8080",
             "webRoot": "${workspaceFolder}",
             "pathMappings": [
@@ -31,18 +29,6 @@
                     "path": "${workspaceFolder}/src"
                 }
             ]
-        },
-        {
-            "name": "Debug with Browser-Preview",
-            "type": "browser-preview",
-            "request": "launch",
-            "preLaunchTask": "Watch Client",
-            "url": "http://localhost:8080",
-            "webRoot": "${workspaceFolder}",
-            "sourceMapPathOverrides": {
-                "webpack:///./~/*": "${workspaceFolder}/node_modules/*",
-                "webpack://?:*/*": "${workspaceFolder}/*"
-            }
         }
     ],
 }

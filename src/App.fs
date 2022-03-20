@@ -54,7 +54,7 @@ let update message sim =
   | SetInitialAngle a -> sim |> newVelocity { sim.Settings with InitialAngle = a }
 
   | SetInitialX x -> sim |> newPosition { sim.Settings with InitialPosition = sim.Settings.InitialPosition |> Vector2.withX x }
-          
+
   | SetInitialY y -> sim |> newPosition { sim.Settings with InitialPosition = sim.Settings.InitialPosition |> Vector2.withY y }
 
   | SetMass m ->
@@ -154,7 +154,7 @@ let inline numberInputUnitWith attributes unit message value dispatch =
           OnChange (fun e ->
             try (float e.Value) * 1.0<_> |> message |> dispatch
             with | _ -> ())
-            
+
           yield! attributes ]
       yield! unit ]
 
@@ -171,7 +171,6 @@ let inline settingInputUnit name = settingInputUnitWith [] name
 
 
 let controls running settings dispatch =
-  printf "controls"
   div
     [ ClassName "controls"
       Style [ MarginTop Graphics.height ] ]

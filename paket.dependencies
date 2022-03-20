@@ -1,6 +1,7 @@
-source https://nuget.org/api/v2
-storage:none
-framework netcore5.0
+source https://api.nuget.org/v3/index.json
+
+storage: none
+framework: net5.0
 
 nuget FSharp.Core
 nuget Fable.Core
