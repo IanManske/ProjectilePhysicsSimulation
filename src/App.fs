@@ -323,7 +323,6 @@ let view sim dispatch =
 open Elmish
 #if DEBUG
 open Elmish.HMR
-open Elmish.Debug
 #endif
 
 let init () =
@@ -336,9 +335,6 @@ let rec loop dispatch last t =
   Browser.Dom.window.requestAnimationFrame((loop dispatch t)) |> ignore
 
 Program.mkSimple init update view
-#if DEBUG
-|> Program.withDebugger
-#endif
 |> Program.withReactBatched "elmish-app"
 |> Program.withSubscription (fun _ -> Cmd.ofSub <| fun d -> loop d 0.0 0.0)
 |> Program.run
