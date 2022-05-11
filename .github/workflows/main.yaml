@@ -23,12 +23,11 @@ jobs:
       with:
         node-version: 18
 
-    - name: Install and Build
-      run: |
-        npm ci
-        npm run build
-      env:
-        CI: true
+    - name: Install Packages via pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 6
+        run_install: true
 
     - name: Deploy to Github Pages
       uses: JamesIves/github-pages-deploy-action@4.1.0
