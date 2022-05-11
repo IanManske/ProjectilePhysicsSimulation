@@ -10,7 +10,7 @@
   "scripts": {
     "postinstall": "dotnet tool restore",
     "start": "dotnet fable watch src -s -o fable & parcel",
-    "build": "dotnet fable src -s -o fable --run parcel build"
+    "build": "dotnet fable src -s -o fable --run parcel build --public-url \"./\""
   },
   "dependencies": {
     "preact": "^10.6.6"

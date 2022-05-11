@@ -122,7 +122,6 @@ let update message sim =
         Elmish.Cmd.ofSub startAnimation
 
   | NextFrame t ->
-      printf "%f" t
       if sim.Running && sim.Settings.SimulationSpeed > 0.0
       then simulateAndDraw sim ((min 0.1<_> (t / 1000.0<ms/s>)) * sim.Settings.SimulationSpeed + sim.LeftOverTime), []
       else sim, []
