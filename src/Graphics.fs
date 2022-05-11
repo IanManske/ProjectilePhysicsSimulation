@@ -8,17 +8,18 @@ open Physics
 
 let private phi = (1.0 + sqrt 5.0) / 2.0
 let width = window.screen.availWidth / phi
-let height = window.screen.availHeight * 0.7
+let height = window.screen.availHeight * 0.75
 
 let private setupCanvas id =
   let canvas = document.getElementById id :?> HTMLCanvasElement
   canvas.width <- width
   canvas.height <- height
-  
+
   // HTMLCanvas uses top-left corner as (0,0) with positive y meaning downwards on the screen.
   // Translate the canvas so that (0,0) is at least the bottom left corner (still have to multiply y-coordinate by -1 when drawing):
   let context = canvas.getContext_2d()
   context.translate(0.0, height)
+  context.scale(1.0, -1.0)
   canvas, context
 
 let trajectoryCanvas, trajectoryContext = setupCanvas "trajectoryCanvas"
@@ -33,13 +34,13 @@ velocityContext.strokeStyle <- U3.Case1 "red"
 
 
 let private clear (context: CanvasRenderingContext2D) =
-  context.clearRect(0.0, -context.canvas.height, context.canvas.width, context.canvas.height)
+  context.clearRect(0.0, 0.0, context.canvas.width, context.canvas.height)
 
 let drawTracer (point: Vector2<_>) =
   trajectoryContext.beginPath()
   trajectoryContext.arc(
     float point.X,
-    -float point.Y,
+    float point.Y,
     2.5,
     0.0,
     System.Math.PI * 2.0)
@@ -57,12 +58,12 @@ Substituting in (a + delta) for b, a simplification occurs:
   = position - alpha * position + alpha * position + alpha * deltaPosition
   = position + alpha * deltaPosition
 *)
-let private lerpDelta a delta alpha = a .+ alpha .*.. delta
+let private lerpDelta (Vector2(x, y)) (Vector2(dx, dy)) alpha = Vector2(x + alpha * dx, y + alpha * dy)
+// let private lerpDelta (a: Vector2<_>) (delta: Vector2<_>) (alpha: float) = a + alpha * delta
 
-let maybeDrawTracer sim =
-  let timeSinceLastTracer = sim.Time - sim.LastTracer
+let maybeDrawTracer traceInterval (timeSinceLastTracer: float<Data.UnitSystems.SI.UnitSymbols.s>) =
   let mutable tracerCount = 1
-  let mutable nextTracerTime = sim.Settings.TraceInterval - timeSinceLastTracer
+  let mutable nextTracerTime = traceInterval - timeSinceLastTracer
 
   fun projectile deltaPosition time ->
     if time >= nextTracerTime then
@@ -71,7 +72,7 @@ let maybeDrawTracer sim =
       |> lerpDelta (Body.center projectile) deltaPosition // alpha -> tracerPosition
       |> drawTracer // tracerPosition -> draw
       tracerCount <- tracerCount + 1
-      nextTracerTime <- sim.Settings.TraceInterval * float tracerCount - timeSinceLastTracer
+      nextTracerTime <- traceInterval * float tracerCount - timeSinceLastTracer
 
 let resetTrajectory projectile =
   clear trajectoryContext
@@ -80,56 +81,67 @@ let resetTrajectory projectile =
 
 
 
-let mutable private lastBody = Simulation.initial.Projectile
-let mutable private lastVelocityMaker = Simulation.initial.Projectile
-
-
-let private clearBody projectile =
+let clearBody projectile =
   bodyContext.clearRect(
     float projectile.Position.X - 1.0,
-    -float projectile.Position.Y - float projectile.Height - 1.0,
+    float projectile.Position.Y - 1.0,
     float projectile.Width + 2.0,
     float projectile.Height + 2.0)
 
-let private drawBody projectile =
+let drawBody projectile =
   bodyContext.fillRect(
     float projectile.Position.X,
-    -float projectile.Position.Y - float projectile.Height,
+    float projectile.Position.Y,
     float projectile.Width,
     float projectile.Height)
 
-let redrawBody projectile =
-  clearBody lastBody
-  drawBody projectile
-  lastBody <- projectile
 
-
-let private clearVelocityMarker projectile =
+let clearVelocityMarker projectile =
   let c = Body.center projectile
   let v = projectile.Velocity
   velocityContext.clearRect(
     float c.X - float (abs v.X) - 1.0,
-    -float c.Y - float (abs v.Y) - 1.0,
+    float c.Y - float (abs v.Y) - 1.0,
     float (2.0 * abs v.X) + 2.0,
     float (2.0 * abs v.Y) + 2.0)
 
-let private drawVelocityMarker projectile =
+let drawVelocityMarker projectile =
   velocityContext.beginPath()
   let c = Body.center projectile
-  velocityContext.moveTo(float c.X, -float c.Y)
+  velocityContext.moveTo(float c.X, float c.Y)
   velocityContext.lineTo(
     float c.X + float projectile.Velocity.X,
-    -float c.Y - float projectile.Velocity.Y)
+    float c.Y + float projectile.Velocity.Y)
   velocityContext.closePath()
   velocityContext.stroke()
 
-let redrawVelocityMarker projectile =
-  clearVelocityMarker lastVelocityMaker
+
+
+let redrawProjectile prev projectile =
+  clearBody prev
+  clearVelocityMarker prev
+  drawBody projectile
   drawVelocityMarker projectile
-  lastVelocityMaker <- projectile
 
 
-let redrawAll projectile =
-  redrawBody projectile
-  redrawVelocityMarker projectile
-  resetTrajectory projectile
+open Fable.React
+
+let someCanvas (p: {| redraw: CanvasRenderingContext2D -> unit |}) =
+  let scale = Hooks.useState (1.0, -1.0)
+  let canvas = Hooks.useRef null : IRefValue<HTMLCanvasElement>
+  let resize _ =
+    canvas.current.width <- canvas.current.clientWidth
+    canvas.current.height <- canvas.current.clientHeight
+    scale.update ((canvas.current.width, canvas.current.height))
+  Hooks.useEffect (resize, [||])
+  Hooks.useEffect (fun () ->
+    let c = canvas.current
+    c.addEventListener ("resize", resize)
+    JsInterop.(!!)(fun () -> c.removeEventListener ("resize", resize)))
+  Hooks.useEffect ((fun () ->
+    let context = canvas.current.getContext_2d ()
+    let x, y = scale.current
+    context.scale (x, -y)
+    p.redraw context),
+    [| scale.current |])
+  Standard.canvas [ Props.RefValue <| JsInterop.(!!)canvas ] []

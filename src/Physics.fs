@@ -11,25 +11,17 @@ open FSharp.Data.UnitSystems.SI.UnitSymbols
 
 // Here we have some fun and make our own Vector2 type:
 [<Fable.Core.Erase>]
-type Vector2< [<Measure>] 'u > =
+type Vector2<[<Measure>] 'u> =
   Vector2 of
     x: float<'u> *
     y: float<'u>
-
-
-// Fable3 still has trouble with overloaded operators, so we are stuck with these ones that have periods.
-[<AutoOpen>]
-module Vector2Operators =
-  let inline ( .+ ) (Vector2(ax, ay)) (Vector2(bx, by)) = Vector2(ax + bx, ay + by)
-
-  let inline ( .- ) (Vector2(ax, ay)) (Vector2(bx, by)) = Vector2(ax - bx, ay - by)
-
-  let inline ( .* ) (Vector2(ax, ay)) (Vector2(bx, by)) = ax * bx + ay * by
-
-  let inline ( .*.. ) scalar (Vector2(ax, ay)) = Vector2(scalar * ax, scalar * ay)
-  let inline ( ..*. ) (Vector2(ax, ay)) scalar = Vector2(scalar * ax, scalar * ay)
-
-  let inline ( ./ ) (Vector2(ax, ay)) scalar = Vector2(ax / scalar, ay / scalar)
+  with
+    static member ( + ) (Vector2(ax, ay), Vector2(bx, by)) = Vector2(ax + bx, ay + by)
+    static member ( - ) (Vector2(ax, ay), Vector2(bx, by)) = Vector2(ax - bx, ay - by)
+    static member ( * ) (Vector2(ax, ay), Vector2(bx, by)) = ax * bx + ay * by
+    static member ( * ) (scalar, Vector2(ax, ay)) = Vector2(scalar * ax, scalar * ay)
+    static member ( * ) (Vector2(ax, ay), scalar) = Vector2(scalar * ax, scalar * ay)
+    static member ( / ) (Vector2(ax, ay), scalar) = Vector2(ax / scalar, ay / scalar)
 
 
 [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
@@ -47,16 +39,16 @@ module Vector2 =
   let inline withX x (Vector2(_, y)) = Vector2(x, y)
   let inline withY y (Vector2(x, _)) = Vector2(x, y)
 
-  let magnitude (vector: Vector2<_>) = sqrt (vector .* vector)
+  let magnitude (vector: Vector2<_>) = sqrt (vector * vector)
 
-  let normalizeUnsafe vector = vector ./ (magnitude vector)
+  let normalizeUnsafe vector = vector / magnitude vector
 
   let normalize vector =
     if vector = zero
     then zero
     else normalizeUnsafe vector
 
-type Vector2<[<Measure>]'u> with
+type Vector2<[<Measure>] 'u> with
   member this.X = Vector2.X this
   member this.Y = Vector2.Y this
 
@@ -117,6 +109,7 @@ module Simulation =
   let minTraceInterval = timeStep - timeStep / 1000000000.0
 
   let started sim = sim.Time > 0.0<_>
+  let timeSinceLastTracer sim = sim.Time - sim.LastTracer
 
   let private applyGravity (gravity: float<m/s^2>) (Vector2(x, y)) = Vector2(x, y + gravity)
 
@@ -125,7 +118,7 @@ module Simulation =
   // c (kg/m) = fluid density * contact area * drag coefficient / 2
   // Force drag (kg m/s^2) = c (kg/m) * v^2 (m^2/s^2) * [direction]
   let private accclerationDrag (constant: float<kg/m>) (velocity: Vector2<m/s>) mass =
-    -constant * (velocity .* velocity) .*.. (Vector2.normalize velocity) ./ mass
+    -constant * (velocity * velocity) * (Vector2.normalize velocity) / mass
 
   let acceleration settings body =
     accclerationDrag settings.DragConstant body.Velocity body.Mass
@@ -133,10 +126,10 @@ module Simulation =
 
   // Uses Beeman's algortithm, a variation of velocity verlet (https://en.wikipedia.org/wiki/Beeman%27s_algorithm):
   let private move body (time: float<s>) newAcceleration =
-    let deltaPosition = body.Velocity ..*. time .+ 1.0 / 6.0 .*.. body.Acceleration ..*. (time * time)
+    let deltaPosition = body.Velocity * time + 1.0 / 6.0 * body.Acceleration * (time * time)
     { body with
-        Position = body.Position .+ deltaPosition
-        Velocity = body.Velocity .+ 1.0 / 6.0 .*.. (2.0 .*.. newAcceleration .+ 5.0 .*.. body.Acceleration .- body.PrevAcceleration) ..*. time
+        Position = body.Position + deltaPosition
+        Velocity = body.Velocity + 1.0 / 6.0 * (2.0 * newAcceleration + 5.0 * body.Acceleration - body.PrevAcceleration) * time
         Acceleration = newAcceleration
         PrevAcceleration = body.Acceleration },
     deltaPosition
@@ -170,34 +163,3 @@ module Simulation =
     { sim with
         Settings = settings
         Projectile = initialProjectile settings sim.Projectile }
-
-  let initial =
-    let settings =
-      { InitialSpeed = 90.0<m/s>
-        InitialAngle = 60.0<deg>
-        InitialPosition = Vector2(15.0<m>, 15.0<m>)
-        AccelerationGravity = -9.8<m/s^2>
-        DragConstant = 0.0<kg/m>
-        ShowTrajectory = true
-        ShowVelocityMarker = true
-        TraceInterval = 1.0<_>
-        SimulationSpeed = 2.5
-        JumpStep = 1.0<_> }
-
-    let projectile =
-      let projectileLength = 25<m>
-      { Width = projectileLength
-        Height = projectileLength
-        Mass = 1000.0<kg>
-        Position = Vector2.zero
-        Velocity = Vector2.zero
-        Acceleration = Vector2.zero
-        PrevAcceleration = Vector2.zero }
-      |> initialProjectile settings
-
-    { Projectile = projectile
-      Running = false
-      Time = 0.0<_>
-      LastTracer = 0.0<_>
-      LeftOverTime = 0.0<_>
-      Settings = settings }

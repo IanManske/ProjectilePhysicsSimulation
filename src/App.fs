@@ -21,25 +21,30 @@ type Message =
   | NextFrame of float<ms>
   | Jump
   | Reset
+  // | Resize
 
 
 let inline clamp low high = max low >> min high
 
 let simulateAndDraw sim totalTime =
-  let sim = Simulation.simulate (Graphics.maybeDrawTracer sim) sim totalTime
-  Graphics.redrawBody sim.Projectile
-  Graphics.redrawVelocityMarker sim.Projectile
-  sim
+  let drawTracer = Simulation.timeSinceLastTracer sim |> Graphics.maybeDrawTracer sim.Settings.TraceInterval
+  let next = Simulation.simulate drawTracer sim totalTime
+  Graphics.redrawProjectile sim.Projectile next.Projectile
+  // Graphics.redrawAll sim.Projectile next.Projectile
+  // Graphics.redrawVelocityMarker sim.Projectile
+  next
 
 let newPosition settings sim =
-  let sim = sim |> Simulation.withSettings settings
-  Graphics.redrawAll sim.Projectile
-  sim
+  let next = sim |> Simulation.withSettings settings
+  Graphics.resetTrajectory next.Projectile
+  Graphics.redrawProjectile sim.Projectile next.Projectile
+  next
 
 let newVelocity settings sim =
-  let sim = sim |> Simulation.withSettings settings
-  Graphics.redrawVelocityMarker sim.Projectile
-  sim
+  let next = sim |> Simulation.withSettings settings
+  Graphics.clearVelocityMarker sim.Projectile
+  Graphics.drawVelocityMarker next.Projectile
+  next
 
 let newAcceleration settings sim =
   if sim.Running
@@ -112,7 +117,8 @@ let update message sim =
 
   | Reset ->
       let projectile = Simulation.initialProjectile sim.Settings sim.Projectile
-      Graphics.redrawAll projectile
+      Graphics.resetTrajectory projectile
+      Graphics.redrawProjectile sim.Projectile projectile
       { sim with
           Projectile = projectile
           Time = 0.0<_>
@@ -124,12 +130,11 @@ let update message sim =
 
 
 // ----View----
-open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
 open Elmish.React
 
-importAll "preact/debug"
+Fable.Core.JsInterop.importAll "preact/debug"
 
 let unit unitName = [ str unitName ]
 let withSub subscript text = [ str text; sub [] [ str subscript ] ]
@@ -302,6 +307,7 @@ let view sim dispatch =
         [ ClassName "simulation"
           Key "simulation"
           Style [ Width Graphics.width ] ]
+        // [ Graphics.someCanvas ()
         [ lazyView3With
             structalThenReferenceEquality
             controls
@@ -326,8 +332,40 @@ open Elmish.HMR
 #endif
 
 let init () =
-  let sim = Simulation.initial
-  Graphics.redrawAll sim.Projectile
+  let sim =
+    let settings =
+      { InitialSpeed = 90.0<m/s>
+        InitialAngle = 60.0<deg>
+        InitialPosition = Vector2(15.0<m>, 15.0<m>)
+        AccelerationGravity = -9.8<m/s^2>
+        DragConstant = 0.0<kg/m>
+        ShowTrajectory = true
+        ShowVelocityMarker = true
+        TraceInterval = 1.0<_>
+        SimulationSpeed = 2.5
+        JumpStep = 1.0<_> }
+
+    let projectile =
+      let projectileLength = 25<m>
+      { Width = projectileLength
+        Height = projectileLength
+        Mass = 1000.0<kg>
+        Position = Vector2.zero
+        Velocity = Vector2.zero
+        Acceleration = Vector2.zero
+        PrevAcceleration = Vector2.zero }
+      |> Simulation.initialProjectile settings
+
+    { Projectile = projectile
+      Running = false
+      Time = 0.0<_>
+      LastTracer = 0.0<_>
+      LeftOverTime = 0.0<_>
+      Settings = settings }
+
+  Graphics.drawBody sim.Projectile
+  Graphics.drawVelocityMarker sim.Projectile
+  Graphics.drawTracer <| Body.center sim.Projectile
   sim
 
 let rec loop dispatch last t =
@@ -337,4 +375,7 @@ let rec loop dispatch last t =
 Program.mkSimple init update view
 |> Program.withReactBatched "elmish-app"
 |> Program.withSubscription (fun _ -> Cmd.ofSub <| fun d -> loop d 0.0 0.0)
+// |> Program.withSubscription (fun _ -> Cmd.ofSub <| fun dispatch ->
+//     Browser.Dom.window.onresize <- fun (e: Browser.Types.UIEvent) ->
+//       Browser.Dom.window.innerHeight )
 |> Program.run
