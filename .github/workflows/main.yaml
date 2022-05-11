@@ -29,6 +29,9 @@ jobs:
         version: 6
         run_install: true
 
+    - name: Build App
+      run: pnpm build
+
     - name: Deploy to Github Pages
       uses: JamesIves/github-pages-deploy-action@4.1.0
       with:
