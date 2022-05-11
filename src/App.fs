@@ -383,5 +383,5 @@ let init () =
   sim, []
 
 Program.mkProgram init update view
-|> Program.withReactBatched "elmish-app"
+|> Program.withReactBatched "app"
 |> Program.run

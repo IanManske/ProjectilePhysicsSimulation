@@ -1,5 +1,8 @@
 node_modules/
-build
+.parcel-cache
+dist
+
+fable
 
 # Paket dependency manager
 .paket/paket.exe
