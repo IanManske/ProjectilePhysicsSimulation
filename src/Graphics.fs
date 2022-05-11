@@ -15,8 +15,10 @@ let private setupCanvas id =
   canvas.width <- width
   canvas.height <- height
 
-  // HTMLCanvas uses top-left corner as (0,0) with positive y meaning downwards on the screen.
-  // Translate the canvas so that (0,0) is at least the bottom left corner (still have to multiply y-coordinate by -1 when drawing):
+  // HTMLCanvas uses top-left corner as (0,0) with
+  // positive y meaning downwards on the screen.
+  // Translate and scale the canvas so that (0,0)
+  // is the bottom left corner with positive y meaning upwards:
   let context = canvas.getContext_2d()
   context.translate(0.0, height)
   context.scale(1.0, -1.0)
@@ -122,26 +124,3 @@ let redrawProjectile prev projectile =
   clearVelocityMarker prev
   drawBody projectile
   drawVelocityMarker projectile
-
-
-open Fable.React
-
-let someCanvas (p: {| redraw: CanvasRenderingContext2D -> unit |}) =
-  let scale = Hooks.useState (1.0, -1.0)
-  let canvas = Hooks.useRef null : IRefValue<HTMLCanvasElement>
-  let resize _ =
-    canvas.current.width <- canvas.current.clientWidth
-    canvas.current.height <- canvas.current.clientHeight
-    scale.update ((canvas.current.width, canvas.current.height))
-  Hooks.useEffect (resize, [||])
-  Hooks.useEffect (fun () ->
-    let c = canvas.current
-    c.addEventListener ("resize", resize)
-    JsInterop.(!!)(fun () -> c.removeEventListener ("resize", resize)))
-  Hooks.useEffect ((fun () ->
-    let context = canvas.current.getContext_2d ()
-    let x, y = scale.current
-    context.scale (x, -y)
-    p.redraw context),
-    [| scale.current |])
-  Standard.canvas [ Props.RefValue <| JsInterop.(!!)canvas ] []

@@ -21,7 +21,6 @@ type Message =
   | NextFrame of float<ms>
   | Jump
   | Reset
-  // | Resize
 
 
 let inline clamp low high = max low >> min high
@@ -30,8 +29,6 @@ let simulateAndDraw sim totalTime =
   let drawTracer = Simulation.timeSinceLastTracer sim |> Graphics.maybeDrawTracer sim.Settings.TraceInterval
   let next = Simulation.simulate drawTracer sim totalTime
   Graphics.redrawProjectile sim.Projectile next.Projectile
-  // Graphics.redrawAll sim.Projectile next.Projectile
-  // Graphics.redrawVelocityMarker sim.Projectile
   next
 
 let newPosition settings sim =
@@ -51,33 +48,47 @@ let newAcceleration settings sim =
   then { sim with Settings = settings }
   else sim |> Simulation.withSettings settings
 
+let startAnimation, cancelAnimation =
+  let window = Browser.Dom.window
+  let mutable lastFrame = None
+  let start dispatch startTime =
+    let rec loop last t =
+      dispatch <| NextFrame ((t - last) * 1.0<ms>)
+      lastFrame <- Some <| window.requestAnimationFrame((loop t))
+    lastFrame <- Some <| window.requestAnimationFrame((loop startTime))
+
+  (fun dispatch -> lastFrame <- dispatch |> start |> window.requestAnimationFrame |> Some),
+  (fun () ->
+    lastFrame |> Option.iter window.cancelAnimationFrame
+    lastFrame <- None)
+
 let update message sim =
   match message with
-  | SetInitialSpeed v -> sim |> newVelocity { sim.Settings with InitialSpeed = v }
+  | SetInitialSpeed v -> sim |> newVelocity { sim.Settings with InitialSpeed = v }, []
 
-  | SetInitialAngle a -> sim |> newVelocity { sim.Settings with InitialAngle = a }
+  | SetInitialAngle a -> sim |> newVelocity { sim.Settings with InitialAngle = a }, []
 
-  | SetInitialX x -> sim |> newPosition { sim.Settings with InitialPosition = sim.Settings.InitialPosition |> Vector2.withX x }
+  | SetInitialX x -> sim |> newPosition { sim.Settings with InitialPosition = sim.Settings.InitialPosition |> Vector2.withX x }, []
 
-  | SetInitialY y -> sim |> newPosition { sim.Settings with InitialPosition = sim.Settings.InitialPosition |> Vector2.withY y }
+  | SetInitialY y -> sim |> newPosition { sim.Settings with InitialPosition = sim.Settings.InitialPosition |> Vector2.withY y }, []
 
   | SetMass m ->
       let projectile = { sim.Projectile with Mass = max Body.minMass m }
       if sim.Running
-      then { sim with Projectile = projectile }
-      else { sim with Projectile = Simulation.initialProjectile sim.Settings projectile }
+      then { sim with Projectile = projectile }, []
+      else { sim with Projectile = Simulation.initialProjectile sim.Settings projectile }, []
 
-  | SetAccelerationGravity a -> sim |> newAcceleration { sim.Settings with AccelerationGravity = a }
+  | SetAccelerationGravity a -> sim |> newAcceleration { sim.Settings with AccelerationGravity = a }, []
 
-  | SetDragConstant c -> sim |> newAcceleration { sim.Settings with DragConstant = max Simulation.minDragConstant c }
+  | SetDragConstant c -> sim |> newAcceleration { sim.Settings with DragConstant = max Simulation.minDragConstant c }, []
 
   | ToggleShowTrajectory ->
       Graphics.trajectoryCanvas.hidden <- sim.Settings.ShowTrajectory
-      { sim with Settings = { sim.Settings with ShowTrajectory = not sim.Settings.ShowTrajectory } }
+      { sim with Settings = { sim.Settings with ShowTrajectory = not sim.Settings.ShowTrajectory } }, []
 
   | ToggleShowVelocity ->
       Graphics.velocityCanvas.hidden <- sim.Settings.ShowVelocityMarker
-      { sim with Settings = { sim.Settings with ShowVelocityMarker = not sim.Settings.ShowVelocityMarker } }
+      { sim with Settings = { sim.Settings with ShowVelocityMarker = not sim.Settings.ShowVelocityMarker } }, []
 
   | SetTraceInterval s ->
       let trace = max Simulation.minTraceInterval s
@@ -90,32 +101,36 @@ let update message sim =
             sim.LastTracer
         { sim with
             LastTracer = lastTracer
-            Settings = { sim.Settings with TraceInterval = trace } }
+            Settings = { sim.Settings with TraceInterval = trace } }, []
       else
-        sim
+        sim, []
 
   | SetJumpStep j ->
-      { sim with Settings = { sim.Settings with JumpStep = j |> clamp Simulation.minJumpStep Simulation.maxJumpStep } }
+      { sim with Settings = { sim.Settings with JumpStep = j |> clamp Simulation.minJumpStep Simulation.maxJumpStep } }, []
 
   | SetSimulationSpeed x ->
-      { sim with Settings = { sim.Settings with SimulationSpeed = x |> clamp Simulation.minSpeed Simulation.maxSpeed } }
+      { sim with Settings = { sim.Settings with SimulationSpeed = x |> clamp Simulation.minSpeed Simulation.maxSpeed } }, []
 
   | StartStop ->
       if sim.Running then
+        cancelAnimation ()
         { sim with
             Running = false
-            LeftOverTime = 0.0<_> }
+            LeftOverTime = 0.0<_> }, []
       else
-        { sim with Running = true }
+        { sim with Running = true },
+        Elmish.Cmd.ofSub startAnimation
 
   | NextFrame t ->
+      printf "%f" t
       if sim.Running && sim.Settings.SimulationSpeed > 0.0
-      then simulateAndDraw sim ((min 0.1<_> (t / 1000.0<ms/s>)) * sim.Settings.SimulationSpeed + sim.LeftOverTime)
-      else sim
+      then simulateAndDraw sim ((min 0.1<_> (t / 1000.0<ms/s>)) * sim.Settings.SimulationSpeed + sim.LeftOverTime), []
+      else sim, []
 
-  | Jump -> simulateAndDraw sim sim.Settings.JumpStep
+  | Jump -> simulateAndDraw sim sim.Settings.JumpStep, []
 
   | Reset ->
+      cancelAnimation ()
       let projectile = Simulation.initialProjectile sim.Settings sim.Projectile
       Graphics.resetTrajectory projectile
       Graphics.redrawProjectile sim.Projectile projectile
@@ -124,7 +139,7 @@ let update message sim =
           Time = 0.0<_>
           LeftOverTime = 0.0<_>
           LastTracer = 0.0<_>
-          Running = false }
+          Running = false }, []
 
 
 
@@ -307,7 +322,6 @@ let view sim dispatch =
         [ ClassName "simulation"
           Key "simulation"
           Style [ Width Graphics.width ] ]
-        // [ Graphics.someCanvas ()
         [ lazyView3With
             structalThenReferenceEquality
             controls
@@ -366,16 +380,8 @@ let init () =
   Graphics.drawBody sim.Projectile
   Graphics.drawVelocityMarker sim.Projectile
   Graphics.drawTracer <| Body.center sim.Projectile
-  sim
+  sim, []
 
-let rec loop dispatch last t =
-  dispatch <| NextFrame ((t - last) * 1.0<ms>)
-  Browser.Dom.window.requestAnimationFrame((loop dispatch t)) |> ignore
-
-Program.mkSimple init update view
+Program.mkProgram init update view
 |> Program.withReactBatched "elmish-app"
-|> Program.withSubscription (fun _ -> Cmd.ofSub <| fun d -> loop d 0.0 0.0)
-// |> Program.withSubscription (fun _ -> Cmd.ofSub <| fun dispatch ->
-//     Browser.Dom.window.onresize <- fun (e: Browser.Types.UIEvent) ->
-//       Browser.Dom.window.innerHeight )
 |> Program.run
