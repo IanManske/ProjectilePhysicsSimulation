@@ -174,7 +174,7 @@ let inline numberInputUnitWith attributes unit message value dispatch =
 
           OnChange (fun e ->
             try (float e.Value) * 1.0<_> |> message |> dispatch
-            with | _ -> ())
+            with _ -> ())
 
           yield! attributes ]
       yield! unit ]
@@ -198,7 +198,7 @@ let controls running settings dispatch =
     [ button
         [ let playpause = if running then "Pause" else "Play"
           Type "button"
-          ClassName (playpause.ToLower())
+          ClassName (playpause.ToLower ())
           Title playpause
           OnClick <| fun _ -> dispatch StartStop ]
         []

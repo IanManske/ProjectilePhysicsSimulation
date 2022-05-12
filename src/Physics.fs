@@ -19,9 +19,9 @@ type Vector2<[<Measure>] 'u> =
     static member ( + ) (Vector2(ax, ay), Vector2(bx, by)) = Vector2(ax + bx, ay + by)
     static member ( - ) (Vector2(ax, ay), Vector2(bx, by)) = Vector2(ax - bx, ay - by)
     static member ( * ) (Vector2(ax, ay), Vector2(bx, by)) = ax * bx + ay * by
-    static member ( * ) (scalar, Vector2(ax, ay)) = Vector2(scalar * ax, scalar * ay)
-    static member ( * ) (Vector2(ax, ay), scalar) = Vector2(scalar * ax, scalar * ay)
-    static member ( / ) (Vector2(ax, ay), scalar) = Vector2(ax / scalar, ay / scalar)
+    static member ( * ) (scalar, Vector2(x, y)) = Vector2(scalar * x, scalar * y)
+    static member ( * ) (Vector2(x, y), scalar) = Vector2(scalar * x, scalar * y)
+    static member ( / ) (Vector2(x, y), scalar) = Vector2(x / scalar, y / scalar)
 
 
 [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
@@ -49,8 +49,8 @@ module Vector2 =
     else normalizeUnsafe vector
 
 type Vector2<[<Measure>] 'u> with
-  member this.X = Vector2.X this
-  member this.Y = Vector2.Y this
+  member inline this.X = Vector2.X this
+  member inline this.Y = Vector2.Y this
 
 
 
@@ -150,7 +150,6 @@ module Simulation =
         LeftOverTime = timeToSimulate - simulatedTime
         LastTracer = newTime - ((newTime - sim.LastTracer) % sim.Settings.TraceInterval)
         Projectile = projectile }
-
 
   let initialProjectile settings projectile =
     { projectile with

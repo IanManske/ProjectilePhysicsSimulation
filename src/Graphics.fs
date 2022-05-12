@@ -118,7 +118,6 @@ let drawVelocityMarker projectile =
   velocityContext.stroke()
 
 
-
 let redrawProjectile prev projectile =
   clearBody prev
   clearVelocityMarker prev
