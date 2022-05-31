@@ -63,7 +63,9 @@ Substituting in (a + delta) for b, a simplification occurs:
 let private lerpDelta (Vector2(x, y)) (Vector2(dx, dy)) alpha = Vector2(x + alpha * dx, y + alpha * dy)
 // let private lerpDelta (a: Vector2<_>) (delta: Vector2<_>) (alpha: float) = a + alpha * delta
 
-let maybeDrawTracer traceInterval (timeSinceLastTracer: float<Data.UnitSystems.SI.UnitSymbols.s>) =
+open FSharp.Data.UnitSystems.SI.UnitSymbols
+
+let maybeDrawTracer (traceInterval: float<s>) (timeSinceLastTracer: float<s>) =
   let mutable tracerCount = 1
   let mutable nextTracerTime = traceInterval - timeSinceLastTracer
 
@@ -76,9 +78,7 @@ let maybeDrawTracer traceInterval (timeSinceLastTracer: float<Data.UnitSystems.S
       tracerCount <- tracerCount + 1
       nextTracerTime <- traceInterval * float tracerCount - timeSinceLastTracer
 
-let resetTrajectory projectile =
-  clear trajectoryContext
-  drawTracer <| Body.center projectile
+let resetTrajectory () = clear trajectoryContext
 
 
 
@@ -87,15 +87,15 @@ let clearBody projectile =
   bodyContext.clearRect(
     float projectile.Position.X - 1.0,
     float projectile.Position.Y - 1.0,
-    float projectile.Width + 2.0,
-    float projectile.Height + 2.0)
+    float projectile.Dimensions.X + 2.0,
+    float projectile.Dimensions.Y + 2.0)
 
 let drawBody projectile =
   bodyContext.fillRect(
     float projectile.Position.X,
     float projectile.Position.Y,
-    float projectile.Width,
-    float projectile.Height)
+    float projectile.Dimensions.X,
+    float projectile.Dimensions.Y)
 
 
 let clearVelocityMarker projectile =

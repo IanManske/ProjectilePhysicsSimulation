@@ -5,7 +5,7 @@
   "tasks": [
     {
       "label": "Start",
-      "command": "npm",
+      "command": "pnpm",
       "args": [ "start" ],
       "type": "shell",
       "group": "build",

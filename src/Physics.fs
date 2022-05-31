@@ -56,10 +56,9 @@ type Vector2<[<Measure>] 'u> with
 
 
 type Body =
-  { Width: int<m>
-    Height: int<m>
-    Mass: float<kg>
-    Position: Vector2<m>
+  { Mass: float<kg>
+    Dimensions: Vector2<m> // Width, Height
+    Position: Vector2<m> // Bottom left corner
     Velocity: Vector2<m/s>
     Acceleration: Vector2<m/s^2>
     PrevAcceleration: Vector2<m/s^2> }
@@ -67,10 +66,7 @@ type Body =
 module Body =
   let minMass = System.Double.Epsilon * 1.0<kg>
 
-  let center body =
-    Vector2
-      (float body.Width * 0.5<_> + body.Position.X,
-       float body.Height * 0.5<_> + body.Position.Y)
+  let center body = body.Position + body.Dimensions / 2.0
 
 
 
@@ -109,7 +105,10 @@ module Simulation =
   let minTraceInterval = timeStep - timeStep / 1000000000.0
 
   let started sim = sim.Time > 0.0<_>
-  let timeSinceLastTracer sim = sim.Time - sim.LastTracer
+  let timeSinceLastTracer sim =
+    if not (started sim)
+    then sim.Settings.TraceInterval
+    else sim.Time - sim.LastTracer
 
   let private applyGravity (gravity: float<m/s^2>) (Vector2(x, y)) = Vector2(x, y + gravity)
 
@@ -117,7 +116,7 @@ module Simulation =
   // https://en.wikipedia.org/wiki/Drag_%28physics%29
   // c (kg/m) = fluid density * contact area * drag coefficient / 2
   // Force drag (kg m/s^2) = c (kg/m) * v^2 (m^2/s^2) * [direction]
-  let private accclerationDrag (constant: float<kg/m>) (velocity: Vector2<m/s>) mass =
+  let private accclerationDrag (constant: float<kg/m>) (velocity: Vector2<m/s>) (mass: float<kg>) =
     -constant * (velocity * velocity) * (Vector2.normalize velocity) / mass
 
   let acceleration settings body =

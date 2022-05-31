@@ -33,7 +33,7 @@ let simulateAndDraw sim totalTime =
 
 let newPosition settings sim =
   let next = sim |> Simulation.withSettings settings
-  Graphics.resetTrajectory next.Projectile
+  Graphics.resetTrajectory ()
   Graphics.redrawProjectile sim.Projectile next.Projectile
   next
 
@@ -94,11 +94,10 @@ let update message sim =
       let trace = max Simulation.minTraceInterval s
       if trace <> sim.Settings.TraceInterval then
         let lastTracer =
-          if sim.Time - sim.LastTracer >= sim.Settings.TraceInterval then
-            Graphics.drawTracer <| Body.center sim.Projectile
-            sim.Time
-          else
-            sim.LastTracer
+          let timeSinceLastTracer = Simulation.timeSinceLastTracer sim
+          if timeSinceLastTracer >= sim.Settings.TraceInterval
+          then sim.Time - sim.Settings.TraceInterval
+          else sim.LastTracer
         { sim with
             LastTracer = lastTracer
             Settings = { sim.Settings with TraceInterval = trace } }, []
@@ -118,8 +117,7 @@ let update message sim =
             Running = false
             LeftOverTime = 0.0<_> }, []
       else
-        { sim with Running = true },
-        Elmish.Cmd.ofSub startAnimation
+        { sim with Running = true }, Elmish.Cmd.ofSub startAnimation
 
   | NextFrame t ->
       if sim.Running && sim.Settings.SimulationSpeed > 0.0
@@ -131,7 +129,7 @@ let update message sim =
   | Reset ->
       cancelAnimation ()
       let projectile = Simulation.initialProjectile sim.Settings sim.Projectile
-      Graphics.resetTrajectory projectile
+      Graphics.resetTrajectory ()
       Graphics.redrawProjectile sim.Projectile projectile
       { sim with
           Projectile = projectile
@@ -345,30 +343,29 @@ open Elmish.HMR
 #endif
 
 let init () =
+  let settings =
+    { InitialSpeed = 90.0<m/s>
+      InitialAngle = 60.0<deg>
+      InitialPosition = Vector2(15.0<m>, 15.0<m>)
+      AccelerationGravity = -9.8<m/s^2>
+      DragConstant = 0.0<kg/m>
+      ShowTrajectory = true
+      ShowVelocityMarker = true
+      TraceInterval = 1.0<_>
+      SimulationSpeed = 2.5
+      JumpStep = 1.0<_> }
+
+  let projectile =
+    let projectileLength = 25.0<m>
+    { Mass = 1000.0<kg>
+      Dimensions = Vector2(projectileLength, projectileLength)
+      Position = Vector2.zero
+      Velocity = Vector2.zero
+      Acceleration = Vector2.zero
+      PrevAcceleration = Vector2.zero }
+    |> Simulation.initialProjectile settings
+
   let sim =
-    let settings =
-      { InitialSpeed = 90.0<m/s>
-        InitialAngle = 60.0<deg>
-        InitialPosition = Vector2(15.0<m>, 15.0<m>)
-        AccelerationGravity = -9.8<m/s^2>
-        DragConstant = 0.0<kg/m>
-        ShowTrajectory = true
-        ShowVelocityMarker = true
-        TraceInterval = 1.0<_>
-        SimulationSpeed = 2.5
-        JumpStep = 1.0<_> }
-
-    let projectile =
-      let projectileLength = 25<m>
-      { Width = projectileLength
-        Height = projectileLength
-        Mass = 1000.0<kg>
-        Position = Vector2.zero
-        Velocity = Vector2.zero
-        Acceleration = Vector2.zero
-        PrevAcceleration = Vector2.zero }
-      |> Simulation.initialProjectile settings
-
     { Projectile = projectile
       Running = false
       Time = 0.0<_>
@@ -378,7 +375,6 @@ let init () =
 
   Graphics.drawBody sim.Projectile
   Graphics.drawVelocityMarker sim.Projectile
-  Graphics.drawTracer <| Body.center sim.Projectile
   sim, []
 
 Program.mkProgram init update view
