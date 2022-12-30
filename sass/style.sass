@@ -1,14 +1,15 @@
-%font
-  font:
-    family: 'Fira Code'
-    size: medium
-    weight: 500
-
 body
-  @extend %font
+  font:
+    family: sans-serif
+    size: 16px
+    weight: 500
   margin: 0
+  min-height: 100vh
+  min-width: min-content
+  display: flex
+  flex-direction: column
   --margin-size: 0.25em
-  --border-width: 0.1em
+  --border-width: 2px
   --setting-spacing: 1.25em
 
 canvas
@@ -21,6 +22,9 @@ ul
   padding: 0
 
 button
+  font:
+    family: inherit
+    size: inherit
   cursor: pointer
   padding: 0
   border: 0
@@ -29,17 +33,16 @@ button
     outline: none
 
 input[type="number"]
-  @extend %font
+  font:
+    family: inherit
+    size: inherit
   width: 5em
   margin:
     left: 0.5em
     right: 0.15em
   text-align: right
-  border:
-    width: 1px
-    style: solid
-    color: black
-    radius: 0.25em
+  border: 1px solid black
+  border-radius: 0.25em
 
   -moz-appearance: textfield
 
@@ -61,93 +64,91 @@ input[type="number"]
 #app
   display: flex
   flex:
-    direction: row
+    directio: row
     wrap: wrap
+    grow: 1
 
-%canvas-position
+#canvases
   position: absolute
   left: var(--margin-size)
   top: var(--margin-size)
 
-#canvases
-  @extend %canvas-position
-
   & > canvas
     margin: var(--border-width)
 
-.simulation
-  border: solid var(--border-width) black
+#simulation
   margin: var(--margin-size)
   flex:
     shrink: 0
     grow: 0
 
-.controls
+#viewport
+  border: solid var(--border-width) black
+
+#controls
   display: flex
   justify-content: space-between
   align-items: center
-  border-top: solid var(--border-width) black
+  border: solid var(--border-width) black
+  border-top: none
   height: 5em
-  padding: 0 2em 0 2em
+  padding: 0 2em
 
   & > div
     display: flex
     flex-direction: column
     align-items: center
 
-
-%playpause
+#play, #pause
   background: transparent
   box-sizing: border-box
-  height: 3.75em
+  height: 3.5em
   border-color: transparent transparent transparent black
   transition: 100ms border-width ease
 
   &:hover
     transform: scale(1.1)
 
-.play
-  @extend %playpause
+#play
   border:
     style: solid
     width: 1.85em 0 1.85em 3em
 
-.pause
-  @extend %playpause
+#pause
   border:
     style: double
     width: 0 0 0 3em
 
+#jump
+  background: url('../public/jump.svg')
+  width: 7em
+  height: 2.5em
+  background:
+    position: center
+    size: contain
+    repeat: no-repeat
 
-.jump
-  background: url('../public/jump.svg') no-repeat
-  width: 10em
+  &:hover
+    transform: scale(1.1)
+    opacity: 0.75
+
+#reset
+  background: url('../public/reset.svg')
+  width: 3.5em
   height: 3.5em
   background:
     position: center
-    size: 9em 3em
+    size: contain
+    repeat: no-repeat
 
   &:hover
-    background-size: 9.75em 4em
+    transform: scale(1.1)
     opacity: 0.75
 
-
-.reset
-  background: url('../public/reset.svg') no-repeat
-  width: 5.5em
-  height: 5.5em
-  background:
-    position: center
-    size: 4.5em 4.5em
-
-  &:hover
-    background-size: 5em 5em
-    opacity: 0.75
-
-
-.telemetry
-  @extend %canvas-position
-  margin: var(--margin-size)
+#telemetry
+  position: absolute
+  left: 1em
+  top: 1em
 
   & > summary
     margin-left: 0.25em
@@ -156,13 +157,21 @@ input[type="number"]
     &:hover
       transform: scale(1.1)
 
-  & > table
-    & > tbody
-      & > tr
-        & > td
-          &:nth-child(2)
-            text-align: right
+  & > table > tbody > tr > td:nth-child(2)
+    text-align: right
 
+#settings
+  display: flex
+  --wrap-width: 17em
+  min-width: var(--wrap-width)
+  flex:
+    direction: column
+    basis: var(--wrap-width)
+    grow: 1
+  justify-content: space-around
+
+  & > ul > li
+    margin: var(--setting-spacing)
 
 .checkbox
   cursor: pointer
@@ -174,25 +183,10 @@ input[type="number"]
   border-bottom: 0.1em dashed #999
   text-decoration: none
 
-.settings
-  display: flex
-  --wrap-width: 17em
-  min-width: var(--wrap-width)
-  flex:
-    direction: column
-    basis: var(--wrap-width)
-    grow: 1
-  justify-content: space-around
-
-  & > ul
-    & > li
-      margin: var(--setting-spacing)
-
-
 footer
   display: flex
-  height: 5em
   justify-content: space-evenly
+  padding: 1em
   margin-top: 2.5em
   border-top: solid var(--border-width)
 

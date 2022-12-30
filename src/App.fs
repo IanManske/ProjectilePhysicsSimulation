@@ -190,13 +190,11 @@ let inline settingInputUnit name = settingInputUnitWith [] name
 
 
 let controls running settings dispatch =
-  div
-    [ ClassName "controls"
-      Style [ MarginTop Graphics.height ] ]
+  div [ Id "controls" ]
     [ button
         [ let playpause = if running then "Pause" else "Play"
           Type "button"
-          ClassName (playpause.ToLower ())
+          Id (playpause.ToLower ())
           Title playpause
           OnClick <| fun _ -> dispatch StartStop ]
         []
@@ -212,7 +210,7 @@ let controls running settings dispatch =
       div []
         [ button
             [ Type "button"
-              ClassName "jump"
+              Id "jump"
               Title "Jump"
               OnClick <| fun _ -> dispatch Jump ]
             []
@@ -229,7 +227,7 @@ let controls running settings dispatch =
             dispatch ]
       button
         [ Type "button"
-          ClassName "reset"
+          Id "reset"
           Title "Reset"
           OnClick <| fun _ -> dispatch Reset ]
         [] ]
@@ -247,7 +245,7 @@ let inline telemetryEntry name = telemetryEntryWith [ str name ]
 
 let telemetry time projectile =
   details
-    [ ClassName "telemetry"
+    [ Id "telemetry"
       Open true ]
     [ summary []
         [ str "Telemetry" ]
@@ -264,7 +262,7 @@ let telemetry time projectile =
 
 let viewSettings started mass settings dispatch =
   div
-    [ ClassName "settings"
+    [ Id "settings"
       Key "settings" ]
     [ ul []
         [ checkbox "Show Velocity Marker" ToggleShowVelocity settings.ShowVelocityMarker dispatch
@@ -316,10 +314,14 @@ let inline structalThenReferenceEquality (a1, b1: 'b) (a2, b2: 'b) =
 let view sim dispatch =
   ofList
     [ div
-        [ ClassName "simulation"
-          Key "simulation"
-          Style [ Width Graphics.width ] ]
-        [ lazyView3With
+        [ Id "simulation"
+          Key "simulation" ]
+        [ div
+            [ Id "viewport"
+              Style [ Width Graphics.width; Height Graphics.height ] ]
+            []
+
+          lazyView3With
             structalThenReferenceEquality
             controls
             sim.Running

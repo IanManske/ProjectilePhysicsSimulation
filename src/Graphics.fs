@@ -7,8 +7,8 @@ open Browser.Types
 open Physics
 
 let private phi = (1.0 + sqrt 5.0) / 2.0
-let width = window.screen.availWidth / phi
-let height = window.screen.availHeight * 0.75
+let width = int (window.screen.availWidth / phi)
+let height = int (window.screen.availHeight * 0.75)
 
 let private setupCanvas id =
   let canvas = document.getElementById id :?> HTMLCanvasElement
