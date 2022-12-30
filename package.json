@@ -8,15 +8,17 @@
     "react/jsx-runtime": "preact/jsx-runtime"
   },
   "scripts": {
-    "postinstall": "dotnet tool restore",
-    "start": "dotnet fable watch src -s -o fable & parcel",
-    "build": "dotnet fable src -s -o fable --run parcel build --public-url \"./\""
+    "postinstall": "dotnet tool restore && dotnet paket install",
+    "watch": "dotnet fable watch src -s -o fable",
+    "start": "parcel",
+    "build": "dotnet fable src -s -o fable --run parcel build --public-url \"./\"",
+    "build-fable": "dotnet fable src -s -o fable"
   },
   "dependencies": {
-    "preact": "^10.6.6"
+    "preact": "^10.11.3"
   },
   "devDependencies": {
-    "@parcel/transformer-sass": "2.5.0",
-    "parcel": "^2.5.0"
+    "@parcel/transformer-sass": "^2.8.2",
+    "parcel": "^2.8.2"
   }
 }
